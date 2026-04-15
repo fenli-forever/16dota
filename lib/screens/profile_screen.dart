@@ -2,7 +2,15 @@ import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 import '../providers/auth_provider.dart';
 import '../models/match.dart';
-import '../screens/leaderboard_screen.dart' show _tierColor;
+
+Color _tierColor(String n) {
+  if (n.contains('永恒') || n.contains('超凡')) return const Color(0xFFE74C3C);
+  if (n.contains('神话') || n.contains('传奇')) return const Color(0xFF9B59B6);
+  if (n.contains('宗师') || n.contains('大师')) return const Color(0xFFE8A020);
+  if (n.contains('精英') || n.contains('黄金')) return const Color(0xFFFFD700);
+  if (n.contains('白银') || n.contains('铂金')) return const Color(0xFF87CEEB);
+  return const Color(0xFF8B949E);
+}
 
 class ProfileScreen extends StatelessWidget {
   const ProfileScreen({super.key});
