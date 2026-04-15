@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import 'match_history_screen.dart';
+import 'leaderboard_screen.dart';
 import 'friends_screen.dart';
 import 'profile_screen.dart';
 
@@ -14,6 +15,7 @@ class _HomeScreenState extends State<HomeScreen> {
 
   final _screens = const [
     MatchHistoryScreen(),
+    LeaderboardScreen(),
     FriendsScreen(),
     ProfileScreen(),
   ];
@@ -28,15 +30,22 @@ class _HomeScreenState extends State<HomeScreen> {
         onTap: (i) => setState(() => _tab = i),
         backgroundColor: const Color(0xFF161B22),
         selectedItemColor: const Color(0xFFE8A020),
-        unselectedItemColor: const Color(0xFF8B949E),
+        unselectedItemColor: const Color(0xFF484F58),
+        type: BottomNavigationBarType.fixed,
+        selectedLabelStyle: const TextStyle(fontSize: 11),
+        unselectedLabelStyle: const TextStyle(fontSize: 11),
         items: const [
           BottomNavigationBarItem(
             icon: Icon(Icons.history),
             label: '战绩',
           ),
           BottomNavigationBarItem(
-            icon: Icon(Icons.people),
-            label: '好友',
+            icon: Icon(Icons.leaderboard),
+            label: '天梯',
+          ),
+          BottomNavigationBarItem(
+            icon: Icon(Icons.search),
+            label: '搜索',
           ),
           BottomNavigationBarItem(
             icon: Icon(Icons.person),

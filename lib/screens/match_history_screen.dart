@@ -72,7 +72,10 @@ class _MatchHistoryScreenState extends State<MatchHistoryScreen> {
                     style: TextStyle(color: Color(0xFF8B949E))),
               );
             }
-            return RefreshIndicator(
+            return Column(
+              children: [
+                _StatsSummary(matches: mp.matches),
+                Expanded(child: RefreshIndicator(
               color: const Color(0xFFE8A020),
               backgroundColor: const Color(0xFF161B22),
               onRefresh: () => mp.load(refresh: true),
@@ -96,6 +99,8 @@ class _MatchHistoryScreenState extends State<MatchHistoryScreen> {
                   );
                 },
               ),
+            )),
+              ],
             );
           },
         ),
@@ -809,6 +814,94 @@ class _Chip extends StatelessWidget {
             color: Color(0xFFE8A020),
             fontSize: 11,
             fontWeight: FontWeight.w600)),
+  );
+}
+
+// ── 顶部统计摘要 ──────────────────────────────────────────────────────────
+
+class _StatsSummary extends StatelessWidget {
+  final List<MatchRecord> matches;
+  const _StatsSummary({required this.matches});
+
+  @override
+  Widget build(BuildContext context) {
+    final valid  = matches.where((m) => !m.isInvalid).toList();
+    final wins   = valid.where((m) => m.isWin).length;
+    final losses = valid.length - wins;
+    final rate   = valid.isEmpty ? 0.0 : wins / valid.length;
+
+    return Container(
+      color: const Color(0xFF161B22),
+      padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 10),
+      child: Row(
+        children: [
+          _SummaryItem('${valid.length}', '场', const Color(0xFF8B949E)),
+          const SizedBox(width: 4),
+          Container(width: 1, height: 24, color: const Color(0xFF30363D)),
+          const SizedBox(width: 4),
+          _SummaryItem('$wins', '胜', const Color(0xFF2EA043)),
+          const SizedBox(width: 4),
+          Container(width: 1, height: 24, color: const Color(0xFF30363D)),
+          const SizedBox(width: 4),
+          _SummaryItem('$losses', '负', const Color(0xFFDA3633)),
+          const Spacer(),
+          // 胜率进度条
+          Column(
+            crossAxisAlignment: CrossAxisAlignment.end,
+            children: [
+              Text('胜率 ${(rate * 100).toStringAsFixed(1)}%',
+                  style: TextStyle(
+                      color: rate >= 0.5
+                          ? const Color(0xFF2EA043)
+                          : const Color(0xFFDA3633),
+                      fontSize: 13,
+                      fontWeight: FontWeight.bold)),
+              const SizedBox(height: 4),
+              SizedBox(
+                width: 100,
+                child: ClipRRect(
+                  borderRadius: BorderRadius.circular(3),
+                  child: LinearProgressIndicator(
+                    value: rate.clamp(0.0, 1.0),
+                    minHeight: 5,
+                    backgroundColor:
+                        const Color(0xFFDA3633).withValues(alpha: 0.3),
+                    valueColor:
+                        const AlwaysStoppedAnimation(Color(0xFF2EA043)),
+                  ),
+                ),
+              ),
+            ],
+          ),
+        ],
+      ),
+    );
+  }
+}
+
+class _SummaryItem extends StatelessWidget {
+  final String value;
+  final String label;
+  final Color color;
+  const _SummaryItem(this.value, this.label, this.color);
+
+  @override
+  Widget build(BuildContext context) => Padding(
+    padding: const EdgeInsets.symmetric(horizontal: 8),
+    child: Row(
+      mainAxisSize: MainAxisSize.min,
+      children: [
+        Text(value,
+            style: TextStyle(
+                color: color,
+                fontSize: 15,
+                fontWeight: FontWeight.bold)),
+        const SizedBox(width: 2),
+        Text(label,
+            style: const TextStyle(
+                color: Color(0xFF8B949E), fontSize: 12)),
+      ],
+    ),
   );
 }
 

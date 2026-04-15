@@ -43,6 +43,8 @@ class AuthProvider extends ChangeNotifier {
     }
   }
 
+  Future<void> refreshProfile() => _loadProfile();
+
   Future<void> logout() async {
     await api.logout();
     _profile = null;

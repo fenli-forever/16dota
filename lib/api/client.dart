@@ -144,11 +144,13 @@ class ApiClient {
     return resp['data'] as Map<String, dynamic>? ?? {};
   }
 
-  // ── 好友（占位，待抓包后补充）────────────────────────────────────────
+  // ── 搜索玩家 ──────────────────────────────────────────────────────────
 
-  Future<List<dynamic>> friendList() async {
-    // TODO: 抓包后补充真实端点
-    return [];
+  /// 按 userId 查询其他玩家信息
+  Future<Map<String, dynamic>> searchPlayer(String userId) async {
+    final resp = await _authedReq(
+        'POST', '$_rustwarApi/api/user/userinfo', {'user_id': userId});
+    return resp['data'] as Map<String, dynamic>;
   }
 
   // ── 内部工具 ──────────────────────────────────────────────────────────
