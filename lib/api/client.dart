@@ -99,10 +99,16 @@ class ApiClient {
 
   // ── 玩家信息 ──────────────────────────────────────────────────────────
 
-  /// POST /api/user/userinfo → data.player_info
+  /// POST rustwar/api/user/userinfo → data（含 player_info.id/name/token）
   Future<Map<String, dynamic>> playerInfo() async {
     final resp = await _authedReq('POST', '$_rustwarApi/api/user/userinfo', {});
     return resp['data'] as Map<String, dynamic>;
+  }
+
+  /// GET mall4j-api/p/user/userInfo → data（含 nickName/pic/score/vipLevel）
+  Future<Map<String, dynamic>> mallUserInfo() async {
+    final resp = await _authedReq('GET', '$_mall4jApi/p/user/userInfo', null);
+    return resp['data'] as Map<String, dynamic>? ?? {};
   }
 
   // ── 战绩 ──────────────────────────────────────────────────────────────
@@ -129,11 +135,11 @@ class ApiClient {
   /// POST leaderboard.../api/leaderboard/super_dota/record
   Future<Map<String, dynamic>> leaderboard({
     required int activityId,
-    String subType = 'MD',
+    String battleType = 'AP',
   }) async {
     final resp = await _authedReq(
       'POST', '$_ladderApi/api/leaderboard/super_dota/record',
-      {'activity_id': activityId, 'sub_type': subType, 'user_id': _userId},
+      {'activity_id': activityId, 'battle_type': battleType},
     );
     return resp['data'] as Map<String, dynamic>? ?? {};
   }

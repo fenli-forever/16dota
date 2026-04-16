@@ -76,14 +76,35 @@ class MatchDetail {
   });
 
   factory MatchDetail.fromJson(Map<String, dynamic> j) {
-    final scores  = j['scores'] as Map<String, dynamic>? ?? {};
-    final global  = scores['global'] as Map<String, dynamic>? ?? {};
-    final rawList = (scores['players'] as List?)?.cast<Map<String, dynamic>>() ?? [];
+    // 兼容多种嵌套结构：scores.global / 顶层字段
+    final scores = j['scores'] as Map<String, dynamic>? ?? {};
+    final global = scores['global'] as Map<String, dynamic>? ?? {};
+
+    // 玩家列表：scores.players > players > 顶层列表
+    final rawList = ((scores['players'] ?? j['players']) as List?)
+            ?.cast<Map<String, dynamic>>() ??
+        [];
+
+    // 时长：global.current_duration > 顶层 duration / game_duration
+    final duration = global['current_duration']?.toString()
+        ?? j['duration']?.toString()
+        ?? j['game_duration']?.toString()
+        ?? '';
+
+    // 模式
+    final mode = global['mode']?.toString() ?? j['mode']?.toString() ?? '';
+
+    // 胜利队伍名
+    final winTeamName = global['win']?.toString()
+        ?? j['win_team']?.toString()
+        ?? j['win']?.toString()
+        ?? '';
+
     return MatchDetail(
       gameId:      j['game_id']?.toString() ?? '',
-      duration:    global['current_duration']?.toString() ?? '',
-      mode:        global['mode']?.toString() ?? '',
-      winTeamName: global['win']?.toString() ?? '',
+      duration:    duration,
+      mode:        mode,
+      winTeamName: winTeamName,
       players:     rawList.map(PlayerScore.fromJson).toList(),
     );
   }
@@ -158,7 +179,9 @@ class PlayerScore {
     final user      = j['user'] as Map<String, dynamic>? ?? {};
     final inventory = (j['inventory'] as List?)?.cast<Map<String, dynamic>>() ?? [];
     final runeList  = (j['runes'] as List?)?.cast<Map<String, dynamic>>() ?? [];
-    final mvp       = j['is_mvp'] as Map<String, dynamic>? ?? {};
+    // is_mvp 可能是 bool 或 Map{score:...}
+    final mvpRaw    = j['is_mvp'];
+    final mvp       = mvpRaw is Map ? mvpRaw.cast<String, dynamic>() : <String, dynamic>{};
 
     return PlayerScore(
       userId:           j['user_id']?.toString() ?? user['user_id']?.toString() ?? '',
@@ -183,7 +206,7 @@ class PlayerScore {
       rankName:         j['rank_name']?.toString() ?? '',
       mmr:              (j['mmr'] as num?)?.toDouble() ?? 0,
       participationRate:(j['participation_rate'] as num?)?.toDouble() ?? 0,
-      isMostKills:      j['is_most_kills'] == true,
+      isMostKills:      j['is_most_kills'] == true || mvp['is_most_kills'] == true,
       mvpScore:         (mvp['score'] as num?)?.toDouble() ?? 0,
       items:            inventory.map((e) => e['name']?.toString() ?? '').toList(),
       runes:            runeList.map(RuneRecord.fromJson).toList(),
@@ -240,6 +263,52 @@ class PlayerProfile {
       winCount:   (pi['win_count'] as num?)?.toInt() ?? 0,
       loseCount:  (pi['lose_count'] as num?)?.toInt() ?? 0,
       winRate:    (pi['win_rate'] as num?)?.toDouble() ?? 0,
+    );
+  }
+
+  /// 合并三个接口数据构造 Profile
+  /// rustData  = rustwar /api/user/userinfo 的 data（含 player_info）
+  /// mallData  = mall4j  /p/user/userInfo   的 data（含 nickName/pic）
+  /// ladderData= leaderboard record         的 data（含 rank_name/win_count...）
+  factory PlayerProfile.fromMerged(
+    Map<String, dynamic> rustData,
+    Map<String, dynamic> mallData,
+    Map<String, dynamic> ladderData,
+  ) {
+    final pi = rustData['player_info'] as Map<String, dynamic>? ?? rustData;
+
+    // 昵称：mall4j nickName > rustwar name
+    final nickname = mallData['nickName']?.toString()
+        ?? mallData['nick_name']?.toString()
+        ?? pi['name']?.toString()
+        ?? '';
+
+    // 头像：mall4j pic > rustwar avatar
+    final avatar = mallData['pic']?.toString()
+        ?? pi['avatar']?.toString()
+        ?? '';
+
+    // userId：rustwar extId > mall4j userId
+    final userId = pi['extid']?.toString()
+        ?? mallData['userId']?.toString()
+        ?? pi['user_id']?.toString()
+        ?? '';
+
+    final winRate = (ladderData['win_rate'] as num?)?.toDouble() ?? 0;
+
+    return PlayerProfile(
+      playerId:   (pi['id'] as num?)?.toInt() ?? 0,
+      userId:     userId,
+      nickname:   nickname,
+      avatar:     avatar,
+      rankName:   ladderData['rank_name']?.toString() ?? '',
+      rankPoints: (ladderData['rank_points'] as num?)?.toDouble() ?? 0,
+      mmr:        (ladderData['rating'] as num?)?.toDouble()
+                  ?? (ladderData['mmr'] as num?)?.toDouble() ?? 0,
+      winCount:   (ladderData['win_count'] as num?)?.toInt() ?? 0,
+      loseCount:  (ladderData['fail_count'] as num?)?.toInt()
+                  ?? (ladderData['lose_count'] as num?)?.toInt() ?? 0,
+      winRate:    winRate > 1 ? winRate / 100 : winRate,
     );
   }
 }

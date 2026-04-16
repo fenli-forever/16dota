@@ -1,3 +1,4 @@
+import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 import '../providers/auth_provider.dart';
@@ -29,6 +30,11 @@ class ProfileScreen extends StatelessWidget {
             style: TextStyle(color: Colors.white, fontWeight: FontWeight.bold)),
         actions: [
           IconButton(
+            icon: const Icon(Icons.refresh, color: Color(0xFF8B949E)),
+            tooltip: '刷新数据',
+            onPressed: () => auth.refreshProfile(),
+          ),
+          IconButton(
             icon: const Icon(Icons.logout, color: Color(0xFF8B949E)),
             tooltip: '退出登录',
             onPressed: () => _confirmLogout(context, auth),
@@ -46,15 +52,24 @@ class ProfileScreen extends StatelessWidget {
                 padding: const EdgeInsets.all(16),
                 children: [
                   _AvatarCard(profile: profile),
-                  const SizedBox(height: 16),
+                  const SizedBox(height: 12),
                   _RankCard(profile: profile),
-                  const SizedBox(height: 16),
+                  const SizedBox(height: 12),
                   _StatsCard(profile: profile),
+                  // Debug panel (only in debug builds when data looks empty)
+                  if (kDebugMode && _isDataEmpty(profile)) ...[
+                    const SizedBox(height: 12),
+                    _DebugCard(auth: auth),
+                  ],
+                  const SizedBox(height: 16),
                 ],
               ),
             ),
     );
   }
+
+  bool _isDataEmpty(PlayerProfile p) =>
+      p.rankName.isEmpty && p.mmr == 0 && p.winCount == 0;
 
   void _confirmLogout(BuildContext context, AuthProvider auth) {
     showDialog(
@@ -85,7 +100,7 @@ class ProfileScreen extends StatelessWidget {
   }
 }
 
-// ── 头像卡片 ──────────────────────────────────────────────────────────────
+// ── 头像 + 基本信息卡片 ────────────────────────────────────────────────────
 
 class _AvatarCard extends StatelessWidget {
   final PlayerProfile profile;
@@ -101,18 +116,18 @@ class _AvatarCard extends StatelessWidget {
       ),
       child: Row(
         children: [
+          // 头像
           CircleAvatar(
-            radius: 36,
+            radius: 38,
             backgroundColor: const Color(0xFF30363D),
             backgroundImage: profile.avatar.isNotEmpty
                 ? NetworkImage(profile.avatar)
                 : null,
             child: profile.avatar.isEmpty
-                ? const Icon(Icons.person,
-                    size: 36, color: Color(0xFF8B949E))
+                ? const Icon(Icons.person, size: 38, color: Color(0xFF8B949E))
                 : null,
           ),
-          const SizedBox(width: 16),
+          const SizedBox(width: 18),
           Expanded(
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.start,
@@ -128,9 +143,27 @@ class _AvatarCard extends StatelessWidget {
                 Text('ID: ${profile.playerId}',
                     style: const TextStyle(
                         color: Color(0xFF8B949E), fontSize: 13)),
-                const SizedBox(height: 6),
-                // 段位徽章
-                _RankBadge(rankName: profile.rankName),
+                if (profile.userId.isNotEmpty) ...[
+                  const SizedBox(height: 2),
+                  Text('UID: ${profile.userId}',
+                      style: const TextStyle(
+                          color: Color(0xFF484F58), fontSize: 11)),
+                ],
+                const SizedBox(height: 8),
+                if (profile.rankName.isNotEmpty)
+                  _RankBadge(rankName: profile.rankName)
+                else
+                  Container(
+                    padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 3),
+                    decoration: BoxDecoration(
+                      color: const Color(0xFF30363D),
+                      borderRadius: BorderRadius.circular(4),
+                    ),
+                    child: const Text('未定段',
+                        style: TextStyle(
+                            color: Color(0xFF8B949E),
+                            fontSize: 11)),
+                  ),
               ],
             ),
           ),
@@ -140,7 +173,7 @@ class _AvatarCard extends StatelessWidget {
   }
 }
 
-// ── 段位卡片 ──────────────────────────────────────────────────────────────
+// ── 段位信息卡片 ───────────────────────────────────────────────────────────
 
 class _RankCard extends StatelessWidget {
   final PlayerProfile profile;
@@ -148,6 +181,8 @@ class _RankCard extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final hasData = profile.rankPoints > 0 || profile.mmr > 0;
+
     return Container(
       padding: const EdgeInsets.all(20),
       decoration: BoxDecoration(
@@ -157,29 +192,73 @@ class _RankCard extends StatelessWidget {
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          const Text('段位信息',
-              style: TextStyle(
-                  color: Color(0xFF8B949E),
-                  fontSize: 12,
-                  fontWeight: FontWeight.w600,
-                  letterSpacing: 1)),
+          Row(
+            children: [
+              const Text('段位信息',
+                  style: TextStyle(
+                      color: Color(0xFF8B949E),
+                      fontSize: 12,
+                      fontWeight: FontWeight.w600,
+                      letterSpacing: 1)),
+              const Spacer(),
+              if (!hasData)
+                Container(
+                  padding: const EdgeInsets.symmetric(
+                      horizontal: 7, vertical: 2),
+                  decoration: BoxDecoration(
+                    color: const Color(0xFF30363D),
+                    borderRadius: BorderRadius.circular(4),
+                  ),
+                  child: const Text('暂无数据',
+                      style: TextStyle(
+                          color: Color(0xFF8B949E), fontSize: 10)),
+                ),
+            ],
+          ),
           const SizedBox(height: 16),
           Row(
             children: [
               Expanded(
-                child: _RankStat(
-                  label: '段位分',
-                  value: profile.rankPoints.toStringAsFixed(0),
+                child: _StatBlock(
+                  label: '天梯积分',
+                  value: hasData
+                      ? profile.rankPoints.toStringAsFixed(0)
+                      : '—',
                   color: const Color(0xFFE8A020),
                 ),
               ),
+              Container(
+                  width: 1, height: 40, color: const Color(0xFF30363D)),
               Expanded(
-                child: _RankStat(
+                child: _StatBlock(
                   label: 'MMR',
-                  value: profile.mmr.toStringAsFixed(0),
+                  value: hasData
+                      ? profile.mmr.toStringAsFixed(0)
+                      : '—',
                   color: const Color(0xFF58A6FF),
                 ),
               ),
+              if (profile.rankName.isNotEmpty) ...[
+                Container(
+                    width: 1, height: 40, color: const Color(0xFF30363D)),
+                Expanded(
+                  child: Column(
+                    children: [
+                      Text(profile.rankName,
+                          style: TextStyle(
+                              color: _tierColor(profile.rankName),
+                              fontSize: 15,
+                              fontWeight: FontWeight.bold),
+                          textAlign: TextAlign.center),
+                      const SizedBox(height: 4),
+                      const Text('段位',
+                          style: TextStyle(
+                              color: Color(0xFF8B949E), fontSize: 11),
+                          textAlign: TextAlign.center),
+                    ],
+                  ),
+                ),
+              ],
             ],
           ),
         ],
@@ -188,7 +267,7 @@ class _RankCard extends StatelessWidget {
   }
 }
 
-// ── 战绩卡片 ──────────────────────────────────────────────────────────────
+// ── 战绩统计卡片 ───────────────────────────────────────────────────────────
 
 class _StatsCard extends StatelessWidget {
   final PlayerProfile profile;
@@ -198,6 +277,7 @@ class _StatsCard extends StatelessWidget {
   Widget build(BuildContext context) {
     final total   = profile.winCount + profile.loseCount;
     final winRate = profile.winRate;
+    final hasData = total > 0;
 
     return Container(
       padding: const EdgeInsets.all(20),
@@ -208,35 +288,59 @@ class _StatsCard extends StatelessWidget {
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          const Text('战绩统计',
-              style: TextStyle(
-                  color: Color(0xFF8B949E),
-                  fontSize: 12,
-                  fontWeight: FontWeight.w600,
-                  letterSpacing: 1)),
-          const SizedBox(height: 16),
-
-          // 胜率进度条
           Row(
             children: [
-              Text('胜率 ${(winRate * 100).toStringAsFixed(1)}%',
-                  style: const TextStyle(
-                      color: Colors.white,
-                      fontSize: 15,
-                      fontWeight: FontWeight.bold)),
+              const Text('战绩统计',
+                  style: TextStyle(
+                      color: Color(0xFF8B949E),
+                      fontSize: 12,
+                      fontWeight: FontWeight.w600,
+                      letterSpacing: 1)),
               const Spacer(),
-              Text('共 $total 场',
-                  style: const TextStyle(
-                      color: Color(0xFF8B949E), fontSize: 12)),
+              if (!hasData)
+                Container(
+                  padding: const EdgeInsets.symmetric(
+                      horizontal: 7, vertical: 2),
+                  decoration: BoxDecoration(
+                    color: const Color(0xFF30363D),
+                    borderRadius: BorderRadius.circular(4),
+                  ),
+                  child: const Text('暂无数据',
+                      style: TextStyle(
+                          color: Color(0xFF8B949E), fontSize: 10)),
+                ),
+            ],
+          ),
+          const SizedBox(height: 16),
+
+          // 胜率行
+          Row(
+            children: [
+              Text(
+                hasData
+                    ? '胜率 ${(winRate * 100).toStringAsFixed(1)}%'
+                    : '胜率 —',
+                style: const TextStyle(
+                    color: Colors.white,
+                    fontSize: 15,
+                    fontWeight: FontWeight.bold),
+              ),
+              const Spacer(),
+              Text(
+                hasData ? '共 $total 场' : '—',
+                style: const TextStyle(
+                    color: Color(0xFF8B949E), fontSize: 12),
+              ),
             ],
           ),
           const SizedBox(height: 8),
           ClipRRect(
             borderRadius: BorderRadius.circular(4),
             child: LinearProgressIndicator(
-              value: winRate.clamp(0.0, 1.0),
+              value: hasData ? winRate.clamp(0.0, 1.0) : 0,
               minHeight: 8,
-              backgroundColor: const Color(0xFFDA3633).withValues(alpha: 0.3),
+              backgroundColor:
+                  const Color(0xFFDA3633).withValues(alpha: 0.25),
               valueColor: const AlwaysStoppedAnimation(Color(0xFF2EA043)),
             ),
           ),
@@ -245,16 +349,19 @@ class _StatsCard extends StatelessWidget {
           // 胜/负/总
           Row(
             children: [
-              _CountBadge(
-                  label: '胜', value: profile.winCount,
+              _CountBox(
+                  label: '胜',
+                  value: hasData ? '${profile.winCount}' : '—',
                   color: const Color(0xFF2EA043)),
-              const SizedBox(width: 12),
-              _CountBadge(
-                  label: '负', value: profile.loseCount,
+              const SizedBox(width: 8),
+              _CountBox(
+                  label: '负',
+                  value: hasData ? '${profile.loseCount}' : '—',
                   color: const Color(0xFFDA3633)),
-              const SizedBox(width: 12),
-              _CountBadge(
-                  label: '总', value: total,
+              const SizedBox(width: 8),
+              _CountBox(
+                  label: '总',
+                  value: hasData ? '$total' : '—',
                   color: const Color(0xFF8B949E)),
             ],
           ),
@@ -262,6 +369,78 @@ class _StatsCard extends StatelessWidget {
       ),
     );
   }
+}
+
+// ── Debug 卡片（仅 debug 模式 + 数据为空时显示）────────────────────────────
+
+class _DebugCard extends StatelessWidget {
+  final AuthProvider auth;
+  const _DebugCard({required this.auth});
+
+  @override
+  Widget build(BuildContext context) {
+    final rust   = auth.lastRustData;
+    final mall   = auth.lastMallData;
+    final ladder = auth.lastLadderData;
+    final err    = auth.profileLoadError;
+
+    return Container(
+      padding: const EdgeInsets.all(14),
+      decoration: BoxDecoration(
+        color: const Color(0xFF1C2128),
+        borderRadius: BorderRadius.circular(10),
+        border: Border.all(color: const Color(0xFF444C56)),
+      ),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          const Text('🔧 API 调试信息',
+              style: TextStyle(
+                  color: Color(0xFF8B949E),
+                  fontSize: 11,
+                  fontWeight: FontWeight.w600)),
+          const SizedBox(height: 8),
+          _DebugRow('rustwar', rust.isNotEmpty ? '✓ ${rust.keys.join(', ')}' : '✗ 空'),
+          _DebugRow('mall4j',  mall.isNotEmpty ? '✓ ${mall.keys.join(', ')}' : '✗ 空/失败'),
+          _DebugRow('ladder',  ladder.isNotEmpty ? '✓ ${ladder.keys.join(', ')}' : '✗ 空/失败'),
+          if (err.isNotEmpty)
+            Padding(
+              padding: const EdgeInsets.only(top: 6),
+              child: Text(err,
+                  style: const TextStyle(
+                      color: Color(0xFFFF7B72), fontSize: 10)),
+            ),
+        ],
+      ),
+    );
+  }
+}
+
+class _DebugRow extends StatelessWidget {
+  final String label;
+  final String value;
+  const _DebugRow(this.label, this.value);
+
+  @override
+  Widget build(BuildContext context) => Padding(
+    padding: const EdgeInsets.symmetric(vertical: 2),
+    child: Row(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        SizedBox(
+          width: 60,
+          child: Text(label,
+              style: const TextStyle(
+                  color: Color(0xFF8B949E), fontSize: 10)),
+        ),
+        Expanded(
+          child: Text(value,
+              style: const TextStyle(
+                  color: Color(0xFFCDD9E5), fontSize: 10)),
+        ),
+      ],
+    ),
+  );
 }
 
 // ── 小组件 ────────────────────────────────────────────────────────────────
@@ -272,7 +451,6 @@ class _RankBadge extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    if (rankName.isEmpty) return const SizedBox.shrink();
     final color = _tierColor(rankName);
     return Container(
       padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 3),
@@ -283,40 +461,38 @@ class _RankBadge extends StatelessWidget {
       ),
       child: Text(rankName,
           style: TextStyle(
-              color: color,
-              fontSize: 11,
-              fontWeight: FontWeight.bold)),
+              color: color, fontSize: 11, fontWeight: FontWeight.bold)),
     );
   }
 }
 
-class _RankStat extends StatelessWidget {
+class _StatBlock extends StatelessWidget {
   final String label;
   final String value;
   final Color color;
-  const _RankStat({required this.label, required this.value, required this.color});
+  const _StatBlock(
+      {required this.label, required this.value, required this.color});
 
   @override
   Widget build(BuildContext context) => Column(
-    crossAxisAlignment: CrossAxisAlignment.start,
     children: [
-      Text(label,
-          style: const TextStyle(color: Color(0xFF8B949E), fontSize: 11)),
-      const SizedBox(height: 4),
       Text(value,
           style: TextStyle(
-              color: color,
-              fontSize: 22,
-              fontWeight: FontWeight.bold)),
+              color: color, fontSize: 22, fontWeight: FontWeight.bold),
+          textAlign: TextAlign.center),
+      const SizedBox(height: 4),
+      Text(label,
+          style: const TextStyle(color: Color(0xFF8B949E), fontSize: 11),
+          textAlign: TextAlign.center),
     ],
   );
 }
 
-class _CountBadge extends StatelessWidget {
+class _CountBox extends StatelessWidget {
   final String label;
-  final int value;
+  final String value;
   final Color color;
-  const _CountBadge(
+  const _CountBox(
       {required this.label, required this.value, required this.color});
 
   @override
@@ -324,20 +500,21 @@ class _CountBadge extends StatelessWidget {
     child: Container(
       padding: const EdgeInsets.symmetric(vertical: 12),
       decoration: BoxDecoration(
-        color: color.withValues(alpha: 0.1),
+        color: color.withValues(alpha: 0.08),
         borderRadius: BorderRadius.circular(8),
+        border: Border.all(color: color.withValues(alpha: 0.2)),
       ),
       child: Column(
         children: [
-          Text(value.toString(),
+          Text(value,
               style: TextStyle(
-                  color: color,
-                  fontSize: 20,
-                  fontWeight: FontWeight.bold)),
+                  color: color, fontSize: 20, fontWeight: FontWeight.bold),
+              textAlign: TextAlign.center),
           const SizedBox(height: 2),
           Text(label,
               style: const TextStyle(
-                  color: Color(0xFF8B949E), fontSize: 12)),
+                  color: Color(0xFF8B949E), fontSize: 12),
+              textAlign: TextAlign.center),
         ],
       ),
     ),
