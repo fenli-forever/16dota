@@ -4,6 +4,7 @@ import 'package:flutter/material.dart';
 import 'package:intl/intl.dart';
 import '../api/client.dart';
 import '../models/match.dart';
+import 'user_match_history_screen.dart';
 
 // ── Screen ─────────────────────────────────────────────────────────────────
 
@@ -116,6 +117,7 @@ class _MatchDetailScreenState extends State<MatchDetailScreen> {
                   match: m,
                   selfUserId: widget.api.userId,
                   debugInfo: _debugInfo,
+                  api: widget.api,
                 ),
     );
   }
@@ -128,11 +130,13 @@ class _DetailBody extends StatelessWidget {
   final MatchRecord match;
   final String selfUserId;
   final String debugInfo;
+  final ApiClient api;
 
   const _DetailBody({
     required this.detail,
     required this.match,
     required this.selfUserId,
+    required this.api,
     this.debugInfo = '',
   });
 
@@ -209,6 +213,7 @@ class _DetailBody extends StatelessWidget {
                     isSelf:    p.userId == selfUserId,
                     isWinTeam: e.key == detail.winTeamName,
                     totalDmg:  totalDmg,
+                    api:       api,
                   ),
               ],
             ],
@@ -322,12 +327,14 @@ class _PlayerCard extends StatelessWidget {
   final bool isSelf;
   final bool isWinTeam;
   final int totalDmg;
+  final ApiClient api;
 
   const _PlayerCard({
     required this.player,
     required this.isSelf,
     required this.isWinTeam,
     required this.totalDmg,
+    required this.api,
   });
 
   @override
@@ -382,21 +389,35 @@ class _PlayerCard extends StatelessWidget {
                                     : null,
                           ),
                           const SizedBox(width: 6),
-                          CircleAvatar(
-                            radius: 20,
-                            backgroundColor: const Color(0xFF30363D),
-                            backgroundImage: p.avatar.isNotEmpty
-                                ? NetworkImage(p.avatar)
-                                : null,
-                            child: p.avatar.isEmpty
-                                ? Text(
-                                    p.heroName.isNotEmpty ? p.heroName[0] : '?',
-                                    style: const TextStyle(
-                                        color: Colors.white,
-                                        fontSize: 14,
-                                        fontWeight: FontWeight.bold),
-                                  )
-                                : null,
+                          GestureDetector(
+                            onTap: p.userId.isNotEmpty ? () => Navigator.push(
+                              context,
+                              MaterialPageRoute(
+                                builder: (_) => UserMatchHistoryScreen(
+                                  userId:      p.userId,
+                                  playerId:    '',
+                                  displayName: p.nickname.isNotEmpty
+                                      ? p.nickname : p.heroName,
+                                  api:         api,
+                                ),
+                              ),
+                            ) : null,
+                            child: CircleAvatar(
+                              radius: 20,
+                              backgroundColor: const Color(0xFF30363D),
+                              backgroundImage: p.avatar.isNotEmpty
+                                  ? NetworkImage(p.avatar)
+                                  : null,
+                              child: p.avatar.isEmpty
+                                  ? Text(
+                                      p.heroName.isNotEmpty ? p.heroName[0] : '?',
+                                      style: const TextStyle(
+                                          color: Colors.white,
+                                          fontSize: 14,
+                                          fontWeight: FontWeight.bold),
+                                    )
+                                  : null,
+                            ),
                           ),
                           const SizedBox(width: 8),
                           Expanded(

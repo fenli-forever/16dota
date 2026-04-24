@@ -56,8 +56,8 @@ class _UserMatchHistoryScreenState extends State<UserMatchHistoryScreen> {
     }
   }
 
-  Future<List<dynamic>> _fetch(String id) =>
-      widget.api.matchHistoryForUser(id, page: _page, perPage: 20);
+  Future<List<dynamic>> _fetch(String id, {bool isValid = true}) =>
+      widget.api.matchHistoryForUser(id, page: _page, perPage: 20, isValid: isValid);
 
   Future<void> _loadMore() async {
     if (_loading || !_hasMore) return;
@@ -78,7 +78,15 @@ class _UserMatchHistoryScreenState extends State<UserMatchHistoryScreen> {
           }
         }
       } else if (widget.playerId.isNotEmpty) {
-        raw = await _fetch(widget.playerId);
+        // Try with playerId first (may be Dota player ID); if empty, retry without is_valid filter
+        try {
+          raw = await _fetch(widget.playerId);
+          if (raw.isEmpty && _page == 1) {
+            raw = await _fetch(widget.playerId, isValid: false);
+          }
+        } catch (_) {
+          raw = await _fetch(widget.playerId, isValid: false);
+        }
         _activeId = widget.playerId;
       } else {
         throw Exception('无法确定玩家 ID');
@@ -123,8 +131,10 @@ class _UserMatchHistoryScreenState extends State<UserMatchHistoryScreen> {
                     color: Colors.white,
                     fontWeight: FontWeight.bold,
                     fontSize: 16)),
-            const Text('战绩记录',
-                style: TextStyle(color: Color(0xFF8B949E), fontSize: 11)),
+            Text(
+              _activeId.isNotEmpty ? 'ID: $_activeId' : '战绩记录',
+              style: const TextStyle(color: Color(0xFF8B949E), fontSize: 11),
+            ),
           ],
         ),
         actions: [

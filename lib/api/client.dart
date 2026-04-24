@@ -191,9 +191,11 @@ class ApiClient {
     String userId, {
     int page = 1,
     int perPage = 20,
+    bool isValid = true,
   }) async {
-    final url = '$_rustwarApi/api/teamup/$userId/match_history'
-        '?per_page=$perPage&page=$page&is_valid=true';
+    var url = '$_rustwarApi/api/teamup/$userId/match_history'
+        '?per_page=$perPage&page=$page';
+    if (isValid) url += '&is_valid=true';
     final resp = await _authedReq('GET', url, null);
     final ok = resp['success'] == true || resp['success'] == 1
         || resp['success']?.toString() == 'true';
