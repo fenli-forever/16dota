@@ -453,40 +453,40 @@ class _PlayerCard extends StatelessWidget {
             // ── Row 3: 6-cell stat bar ────────────────────────────────────
             Row(
               children: [
-                _StatCell(
+                Expanded(child: _StatCell(
                   label: '天梯积分',
                   value: p.rankPoints.toStringAsFixed(0),
                   sub:   '$rpSign${p.incRankPoints.toStringAsFixed(0)}',
                   subColor: rpClr,
                   color: Colors.white,
-                ),
-                _StatCell(
+                )),
+                Expanded(child: _StatCell(
                   label: '参战率',
                   value: '${(p.participationRate * 100).toStringAsFixed(0)}%',
                   color: const Color(0xFFCDD9E5),
-                ),
-                _StatCell(
+                )),
+                Expanded(child: _StatCell(
                   label: '正/反补',
                   value: '${p.lastHits}/${p.denies}',
                   color: const Color(0xFFCDD9E5),
-                ),
-                _StatCell(
+                )),
+                Expanded(child: _StatCell(
                   label: '伤害',
                   value: _fmt(p.heroDamage),
                   sub:   '${dmgPct.toStringAsFixed(1)}%',
                   subColor: const Color(0xFF8B949E),
                   color: const Color(0xFFFF7B72),
-                ),
-                _StatCell(
+                )),
+                Expanded(child: _StatCell(
                   label: '治疗',
                   value: _fmt(p.heroHealing),
                   color: const Color(0xFF3FB950),
-                ),
-                _StatCell(
+                )),
+                Expanded(child: _StatCell(
                   label: '推塔',
                   value: _fmt(p.towerDamage),
                   color: const Color(0xFF79C0FF),
-                ),
+                )),
               ],
             ),
           ],
@@ -525,29 +525,27 @@ class _StatCell extends StatelessWidget {
   });
 
   @override
-  Widget build(BuildContext context) => Expanded(
-    child: Column(
-      mainAxisSize: MainAxisSize.min,
-      children: [
-        Text(value,
+  Widget build(BuildContext context) => Column(
+    mainAxisSize: MainAxisSize.min,
+    children: [
+      Text(value,
+          style: TextStyle(
+              color: color,
+              fontSize: 12,
+              fontWeight: FontWeight.bold),
+          textAlign: TextAlign.center),
+      if (sub != null)
+        Text(sub!,
             style: TextStyle(
-                color: color,
-                fontSize: 12,
-                fontWeight: FontWeight.bold),
+                color: subColor ?? const Color(0xFF8B949E),
+                fontSize: 10),
             textAlign: TextAlign.center),
-        if (sub != null)
-          Text(sub!,
-              style: TextStyle(
-                  color: subColor ?? const Color(0xFF8B949E),
-                  fontSize: 10),
-              textAlign: TextAlign.center),
-        const SizedBox(height: 2),
-        Text(label,
-            style: const TextStyle(
-                color: Color(0xFF8B949E), fontSize: 9),
-            textAlign: TextAlign.center),
-      ],
-    ),
+      const SizedBox(height: 2),
+      Text(label,
+          style: const TextStyle(
+              color: Color(0xFF8B949E), fontSize: 9),
+          textAlign: TextAlign.center),
+    ],
   );
 }
 
