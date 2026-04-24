@@ -133,10 +133,12 @@ class ApiClient {
       'POST', '$_teamupApi/api/teamup/game_info/settlement',
       {'game_id': int.tryParse(gameId) ?? gameId},
     );
-    if (resp['success'] != true) {
+    final ok = resp['success'] == true || resp['success'] == 1
+        || resp['success']?.toString() == 'true';
+    if (!ok) {
       final msg = resp['message']?.toString()
           ?? resp['msg']?.toString()
-          ?? '获取详情失败';
+          ?? '获取详情失败 (success=${resp['success']})';
       throw Exception(msg);
     }
     return resp['data'] as Map<String, dynamic>? ?? {};

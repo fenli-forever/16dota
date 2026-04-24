@@ -20,6 +20,7 @@ class _MatchDetailScreenState extends State<MatchDetailScreen> {
   MatchDetail? _detail;
   bool _loading = true;
   String _error = '';
+  String _debugInfo = '';   // visible debug info when players is empty
 
   @override
   void initState() {
@@ -28,24 +29,32 @@ class _MatchDetailScreenState extends State<MatchDetailScreen> {
   }
 
   Future<void> _load() async {
+    setState(() { _loading = true; _error = ''; _debugInfo = ''; });
     try {
       final raw = await widget.api.settlement(widget.match.gameId);
-      // Debug: print first player's inventory to identify image URL fields
-      if (kDebugMode) {
-        final scores = raw['scores'] as Map<String, dynamic>?;
-        final players = (scores?['players'] as List?)?.cast<Map<String, dynamic>>();
-        if (players != null && players.isNotEmpty) {
-          final inv = players.first['inventory'];
-          debugPrint('[inventory sample] ${jsonEncode(inv)}');
-        }
+
+      // Collect debug info about the response structure
+      final topKeys = raw.keys.toList();
+      final scores  = raw['scores'];
+      final scoresType = scores?.runtimeType.toString() ?? 'null';
+      String dbg = '顶层键: ${topKeys.join(', ')}\nscores类型: $scoresType';
+      if (scores is Map) {
+        dbg += '\nscores键: ${(scores as Map).keys.toList().join(', ')}';
+        final players = scores['players'];
+        dbg += '\nplayers类型: ${players?.runtimeType ?? 'null'}';
+        if (players is List) dbg += '  数量: ${players.length}';
       }
+      debugPrint('[settlement debug] $dbg');
+
       if (mounted) {
         setState(() {
-          _detail = MatchDetail.fromJson(raw);
-          _loading = false;
+          _detail    = MatchDetail.fromJson(raw);
+          _debugInfo = dbg;
+          _loading   = false;
         });
       }
     } catch (e) {
+      debugPrint('[settlement error] $e');
       if (mounted) setState(() { _error = e.toString(); _loading = false; });
     }
   }
@@ -106,6 +115,7 @@ class _MatchDetailScreenState extends State<MatchDetailScreen> {
                   detail: _detail!,
                   match: m,
                   selfUserId: widget.api.userId,
+                  debugInfo: _debugInfo,
                 ),
     );
   }
@@ -117,11 +127,13 @@ class _DetailBody extends StatelessWidget {
   final MatchDetail detail;
   final MatchRecord match;
   final String selfUserId;
+  final String debugInfo;
 
   const _DetailBody({
     required this.detail,
     required this.match,
     required this.selfUserId,
+    this.debugInfo = '',
   });
 
   @override
@@ -140,15 +152,42 @@ class _DetailBody extends StatelessWidget {
     final totalDmg = detail.players.fold(0, (s, p) => s + p.heroDamage);
 
     if (sorted.isEmpty) {
-      return Column(children: [
-        _InfoBar(detail: detail, match: match),
-        const Expanded(
-          child: Center(
-            child: Text('暂无详情数据',
-                style: TextStyle(color: Color(0xFF8B949E), fontSize: 14)),
+      return Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          _InfoBar(detail: detail, match: match),
+          Expanded(
+            child: Padding(
+              padding: const EdgeInsets.all(16),
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                mainAxisAlignment: MainAxisAlignment.center,
+                children: [
+                  const Text('暂无详情数据',
+                      style: TextStyle(color: Color(0xFF8B949E), fontSize: 14)),
+                  if (debugInfo.isNotEmpty) ...[
+                    const SizedBox(height: 16),
+                    Container(
+                      width: double.infinity,
+                      padding: const EdgeInsets.all(10),
+                      decoration: BoxDecoration(
+                        color: const Color(0xFF161B22),
+                        borderRadius: BorderRadius.circular(6),
+                        border: Border.all(color: const Color(0xFF30363D)),
+                      ),
+                      child: Text(debugInfo,
+                          style: const TextStyle(
+                              color: Color(0xFF58A6FF),
+                              fontSize: 11,
+                              fontFamily: 'monospace')),
+                    ),
+                  ],
+                ],
+              ),
+            ),
           ),
-        ),
-      ]);
+        ],
+      );
     }
 
     return Column(

@@ -18,10 +18,11 @@ class _FriendsScreenState extends State<FriendsScreen> {
 
   // Search state
   bool _searching = false;
-  PlayerProfile? _profile;
   String _searchError = '';
+  bool _isSearched = false;  // true when showing searched player, false = own
 
-  // Match history state
+  // Profile + match history
+  PlayerProfile? _profile;
   List<MatchRecord> _matches   = [];
   bool   _loadingMatches = false;
   bool   _hasMore        = true;
@@ -33,6 +34,8 @@ class _FriendsScreenState extends State<FriendsScreen> {
   void initState() {
     super.initState();
     _scrollCtrl.addListener(_onScroll);
+    // Load own profile + matches by default after first frame
+    WidgetsBinding.instance.addPostFrameCallback((_) => _loadSelf());
   }
 
   @override
@@ -49,25 +52,44 @@ class _FriendsScreenState extends State<FriendsScreen> {
     }
   }
 
-  Future<void> _search() async {
-    final query = _searchCtrl.text.trim();
-    if (query.isEmpty) return;
+  Future<void> _loadSelf() async {
+    final auth = context.read<AuthProvider>();
+    final api  = auth.api;
+    _resetList(api.userId);
+    // Use already-loaded profile if available
+    if (auth.profile != null) {
+      setState(() { _profile = auth.profile; });
+    }
+    await _loadMoreMatches();
+  }
 
+  void _resetList(String userId) {
     setState(() {
-      _searching    = true;
       _profile      = null;
-      _searchError  = '';
       _matches      = [];
       _hasMore      = true;
       _page         = 1;
-      _targetUserId = '';
       _matchError   = '';
+      _searchError  = '';
+      _targetUserId = userId;
     });
+  }
+
+  Future<void> _search() async {
+    final query = _searchCtrl.text.trim();
+    if (query.isEmpty) {
+      // Clear search → go back to own matches
+      _isSearched = false;
+      _searchCtrl.clear();
+      await _loadSelf();
+      return;
+    }
+
+    setState(() { _searching = true; _searchError = ''; });
 
     try {
       final api = context.read<AuthProvider>().api;
 
-      // 数字 → 按 userId 查；文字 → 按昵称查
       final data = int.tryParse(query) != null
           ? await api.searchPlayer(query)
           : await api.searchPlayerByName(query);
@@ -81,10 +103,11 @@ class _FriendsScreenState extends State<FriendsScreen> {
           ?? query;
 
       if (mounted) {
+        _isSearched = true;
+        _resetList(userId);
         setState(() {
-          _profile      = PlayerProfile.fromJson(data);
-          _targetUserId = userId;
-          _searching    = false;
+          _profile   = PlayerProfile.fromJson(data);
+          _searching = false;
         });
         _loadMoreMatches();
       }
@@ -144,8 +167,23 @@ class _FriendsScreenState extends State<FriendsScreen> {
       appBar: AppBar(
         backgroundColor: const Color(0xFF161B22),
         elevation: 0,
-        title: const Text('搜索玩家',
-            style: TextStyle(color: Colors.white, fontWeight: FontWeight.bold)),
+        title: Text(
+          _isSearched ? '搜索玩家' : '我的战绩',
+          style: const TextStyle(color: Colors.white, fontWeight: FontWeight.bold),
+        ),
+        actions: _isSearched
+            ? [
+                IconButton(
+                  icon: const Icon(Icons.close, color: Color(0xFF8B949E)),
+                  tooltip: '返回我的战绩',
+                  onPressed: () {
+                    _searchCtrl.clear();
+                    _isSearched = false;
+                    _loadSelf();
+                  },
+                )
+              ]
+            : null,
       ),
       body: Column(
         children: [
@@ -162,7 +200,7 @@ class _FriendsScreenState extends State<FriendsScreen> {
                     textInputAction: TextInputAction.search,
                     onSubmitted: (_) => _search(),
                     decoration: InputDecoration(
-                      hintText: '输入昵称或玩家 ID',
+                      hintText: '输入昵称或玩家 ID 搜索',
                       hintStyle: const TextStyle(color: Color(0xFF484F58)),
                       prefixIcon: const Icon(Icons.search,
                           color: Color(0xFF8B949E)),
@@ -203,95 +241,68 @@ class _FriendsScreenState extends State<FriendsScreen> {
                           width: 16, height: 16,
                           child: CircularProgressIndicator(
                               strokeWidth: 2, color: Colors.black))
-                      : const Text('查询',
+                      : const Text('搜索',
                           style: TextStyle(fontWeight: FontWeight.bold)),
                 ),
               ],
             ),
           ),
 
+          if (_searchError.isNotEmpty)
+            Padding(
+              padding: const EdgeInsets.fromLTRB(16, 0, 16, 8),
+              child: Text(_searchError,
+                  style: const TextStyle(
+                      color: Color(0xFFDA3633), fontSize: 12)),
+            ),
+
           // ── 结果区 ──────────────────────────────────────────────────────
           Expanded(
-            child: _profile == null
-                ? _buildEmpty()
-                : RefreshIndicator(
-                    color: const Color(0xFFE8A020),
-                    backgroundColor: const Color(0xFF161B22),
-                    onRefresh: () async {
-                      setState(() {
-                        _matches      = [];
-                        _hasMore      = true;
-                        _page         = 1;
-                        _matchError   = '';
-                      });
-                      await _loadMoreMatches();
-                    },
-                    child: ListView.builder(
-                      controller: _scrollCtrl,
-                      padding: EdgeInsets.zero,
-                      // 0 = profile card, 1..n = match cards, last = loader
-                      itemCount: 1 + _matches.length +
-                          (_loadingMatches || _hasMore ? 1 : 0),
-                      itemBuilder: (ctx, i) {
-                        // Profile header
-                        if (i == 0) {
-                          return _ProfileHeader(profile: _profile!);
-                        }
-                        final mi = i - 1;
-                        // Loading / error footer
-                        if (mi == _matches.length) {
-                          if (_matchError.isNotEmpty) {
-                            return _MatchErrorRow(
-                                error: _matchError,
-                                onRetry: _loadMoreMatches);
-                          }
-                          return const Padding(
-                            padding: EdgeInsets.all(20),
-                            child: Center(
-                              child: CircularProgressIndicator(
-                                  strokeWidth: 2,
-                                  color: Color(0xFFE8A020)),
-                            ),
-                          );
-                        }
-                        return _MatchCard(
-                          match: _matches[mi],
-                          api:   api,
-                        );
-                      },
-                    ),
-                  ),
+            child: RefreshIndicator(
+              color: const Color(0xFFE8A020),
+              backgroundColor: const Color(0xFF161B22),
+              onRefresh: () async {
+                setState(() {
+                  _matches    = [];
+                  _hasMore    = true;
+                  _page       = 1;
+                  _matchError = '';
+                });
+                await _loadMoreMatches();
+              },
+              child: ListView.builder(
+                controller: _scrollCtrl,
+                padding: EdgeInsets.zero,
+                // 0 = profile card (optional), then match cards, then footer
+                itemCount: (_profile != null ? 1 : 0) + _matches.length +
+                    (_loadingMatches || (_hasMore && !_matchError.isNotEmpty) ? 1 : 0),
+                itemBuilder: (ctx, i) {
+                  // Profile header
+                  if (_profile != null) {
+                    if (i == 0) return _ProfileHeader(profile: _profile!);
+                    i--;
+                  }
+                  // Footer loader / error
+                  if (i == _matches.length) {
+                    if (_matchError.isNotEmpty) {
+                      return _MatchErrorRow(
+                          error: _matchError,
+                          onRetry: _loadMoreMatches);
+                    }
+                    return const Padding(
+                      padding: EdgeInsets.all(20),
+                      child: Center(
+                        child: CircularProgressIndicator(
+                            strokeWidth: 2,
+                            color: Color(0xFFE8A020)),
+                      ),
+                    );
+                  }
+                  return _MatchCard(match: _matches[i], api: api);
+                },
+              ),
+            ),
           ),
-        ],
-      ),
-    );
-  }
-
-  Widget _buildEmpty() {
-    if (_searchError.isNotEmpty) {
-      return Center(
-        child: Column(
-          mainAxisSize: MainAxisSize.min,
-          children: [
-            const Icon(Icons.person_search,
-                color: Color(0xFF484F58), size: 48),
-            const SizedBox(height: 12),
-            Text(_searchError,
-                style: const TextStyle(color: Color(0xFF8B949E))),
-          ],
-        ),
-      );
-    }
-    return Center(
-      child: Column(
-        mainAxisSize: MainAxisSize.min,
-        children: [
-          Icon(Icons.manage_search,
-              color: const Color(0xFF30363D), size: 64),
-          const SizedBox(height: 16),
-          const Text('输入昵称或玩家 ID 查询',
-              style:
-                  TextStyle(color: Color(0xFF484F58), fontSize: 15)),
         ],
       ),
     );
