@@ -264,7 +264,10 @@ class PlayerProfile {
     return PlayerProfile(
       playerId:   (pi['id'] as num?)?.toInt() ?? 0,
       // extid = mall4j userId, used for match history URL
+      // check both inside player_info and at top level of data
       userId:     pi['extid']?.toString()
+                  ?? j['extid']?.toString()
+                  ?? j['user_id']?.toString()
                   ?? pi['user_id']?.toString()
                   ?? pi['userId']?.toString() ?? '',
       nickname:   pi['name']?.toString()

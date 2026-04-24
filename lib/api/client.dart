@@ -195,10 +195,12 @@ class ApiClient {
     final url = '$_rustwarApi/api/teamup/$userId/match_history'
         '?per_page=$perPage&page=$page&is_valid=true';
     final resp = await _authedReq('GET', url, null);
-    if (resp['success'] != true) {
+    final ok = resp['success'] == true || resp['success'] == 1
+        || resp['success']?.toString() == 'true';
+    if (!ok) {
       final msg = resp['message']?.toString()
           ?? resp['msg']?.toString()
-          ?? '获取战绩失败';
+          ?? '获取战绩失败 (success=${resp['success']})';
       throw Exception(msg);
     }
     return resp['data'] as List? ?? [];

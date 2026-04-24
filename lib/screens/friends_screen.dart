@@ -1,3 +1,5 @@
+import 'dart:convert';
+import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
 import 'package:intl/intl.dart';
 import 'package:provider/provider.dart';
@@ -101,6 +103,7 @@ class _FriendsScreenState extends State<FriendsScreen> {
 
       if (data.isEmpty) throw Exception('未找到该玩家');
 
+      debugPrint('[search raw] ${jsonEncode(data)}');
       final profile = PlayerProfile.fromJson(data);
       if (mounted) setState(() { _foundProfile = profile; _searching = false; });
     } catch (e) {
@@ -344,13 +347,14 @@ class _SearchResult extends StatelessWidget {
           SizedBox(
             width: double.infinity,
             child: ElevatedButton.icon(
-              onPressed: profile.userId.isEmpty
+              onPressed: (profile.userId.isEmpty && profile.playerId == 0)
                   ? null
                   : () => Navigator.push(
                         context,
                         MaterialPageRoute(
                           builder: (_) => UserMatchHistoryScreen(
                             userId:      profile.userId,
+                            playerId:    profile.playerId.toString(),
                             displayName: profile.nickname.isEmpty
                                 ? '玩家 #${profile.playerId}'
                                 : profile.nickname,
@@ -367,10 +371,9 @@ class _SearchResult extends StatelessWidget {
                 elevation: 0,
               ),
               icon: const Icon(Icons.sports_esports_outlined, size: 18),
-              label: Text(
-                profile.userId.isEmpty ? '无法获取战绩（userId缺失）' : '查看 TA 的战绩',
-                style: const TextStyle(
-                    fontWeight: FontWeight.bold, fontSize: 15),
+              label: const Text(
+                '查看 TA 的战绩',
+                style: TextStyle(fontWeight: FontWeight.bold, fontSize: 15),
               ),
             ),
           ),
@@ -379,7 +382,7 @@ class _SearchResult extends StatelessWidget {
             Padding(
               padding: const EdgeInsets.only(top: 8),
               child: Text(
-                '调试：playerId=${profile.playerId}  userId="${profile.userId}"',
+                '调试：extid="${profile.userId}"  playerId=${profile.playerId}',
                 style: const TextStyle(
                     color: Color(0xFF58A6FF), fontSize: 11),
                 textAlign: TextAlign.center,
@@ -510,14 +513,22 @@ class _MatchCard extends StatelessWidget {
       )),
       child: Container(
         margin: const EdgeInsets.only(bottom: 8),
+        clipBehavior: Clip.antiAlias,
         decoration: BoxDecoration(
-          color: const Color(0xFF161B22),
           borderRadius: BorderRadius.circular(10),
-          border: Border(left: BorderSide(color: color, width: 3)),
+          border: Border.all(color: const Color(0xFF21262D), width: 0.5),
         ),
-        child: Padding(
-          padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 12),
-          child: Row(children: [
+        child: IntrinsicHeight(
+          child: Row(
+            crossAxisAlignment: CrossAxisAlignment.stretch,
+            children: [
+              Container(width: 3, color: color),
+              Expanded(
+                child: ColoredBox(
+                  color: const Color(0xFF161B22),
+                  child: Padding(
+                    padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 12),
+                    child: Row(children: [
             Container(
               width: 38, height: 38,
               decoration: BoxDecoration(
@@ -576,8 +587,13 @@ class _MatchCard extends StatelessWidget {
               ],
             ),
           ]),
-        ),
-      ),
+                  ),  // Padding
+                ),  // ColoredBox
+              ),  // Expanded
+            ],  // outer Row children
+          ),  // IntrinsicHeight
+        ),  // Container
+      ),  // GestureDetector
     );
   }
 }

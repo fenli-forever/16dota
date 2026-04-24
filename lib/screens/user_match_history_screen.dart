@@ -6,13 +6,17 @@ import 'match_detail_screen.dart';
 
 /// Displays match history for any given user (self or searched player).
 class UserMatchHistoryScreen extends StatefulWidget {
+  /// mall4j userId (from player_info.extid). May be empty for searched players.
   final String userId;
+  /// Dota internal player ID (player_info.id). Always present when player is found.
+  final String playerId;
   final String displayName;
   final ApiClient api;
 
   const UserMatchHistoryScreen({
     super.key,
     required this.userId,
+    required this.playerId,
     required this.displayName,
     required this.api,
   });
@@ -29,10 +33,12 @@ class _UserMatchHistoryScreenState extends State<UserMatchHistoryScreen> {
   bool _hasMore = true;
   int  _page    = 1;
   String _error = '';
+  String _activeId = ''; // whichever ID actually worked
 
   @override
   void initState() {
     super.initState();
+    _activeId = widget.userId.isNotEmpty ? widget.userId : widget.playerId;
     _scrollCtrl.addListener(_onScroll);
     _loadMore();
   }
@@ -50,14 +56,36 @@ class _UserMatchHistoryScreenState extends State<UserMatchHistoryScreen> {
     }
   }
 
+  Future<List<dynamic>> _fetch(String id) =>
+      widget.api.matchHistoryForUser(id, page: _page, perPage: 20);
+
   Future<void> _loadMore() async {
     if (_loading || !_hasMore) return;
     setState(() { _loading = true; _error = ''; });
     try {
-      final raw = await widget.api.matchHistoryForUser(
-        widget.userId, page: _page, perPage: 20);
+      List<dynamic> raw;
+      if (widget.userId.isNotEmpty) {
+        try {
+          raw = await _fetch(widget.userId);
+          _activeId = widget.userId;
+        } catch (_) {
+          // mall4j userId failed — try Dota player ID as fallback
+          if (widget.playerId.isNotEmpty) {
+            raw = await _fetch(widget.playerId);
+            _activeId = widget.playerId;
+          } else {
+            rethrow;
+          }
+        }
+      } else if (widget.playerId.isNotEmpty) {
+        raw = await _fetch(widget.playerId);
+        _activeId = widget.playerId;
+      } else {
+        throw Exception('无法确定玩家 ID');
+      }
+
       final items = raw.map((e) => MatchRecord.fromJson(
-          e as Map<String, dynamic>, selfUserId: widget.userId)).toList();
+          e as Map<String, dynamic>, selfUserId: _activeId)).toList();
       if (mounted) {
         setState(() {
           _matches.addAll(items);
@@ -202,71 +230,84 @@ class _MatchCard extends StatelessWidget {
       )),
       child: Container(
         margin: const EdgeInsets.only(bottom: 8),
+        clipBehavior: Clip.antiAlias,
         decoration: BoxDecoration(
-          color: const Color(0xFF161B22),
           borderRadius: BorderRadius.circular(10),
-          border: Border(left: BorderSide(color: color, width: 3)),
+          border: Border.all(color: const Color(0xFF21262D), width: 0.5),
         ),
-        child: Padding(
-          padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 12),
+        child: IntrinsicHeight(
           child: Row(
+            crossAxisAlignment: CrossAxisAlignment.stretch,
             children: [
-              Container(
-                width: 38, height: 38,
-                decoration: BoxDecoration(
-                  color: color.withValues(alpha: 0.15),
-                  shape: BoxShape.circle,
-                ),
-                alignment: Alignment.center,
-                child: Text(_label,
-                    style: TextStyle(
-                        color: color,
-                        fontWeight: FontWeight.bold,
-                        fontSize: 13)),
-              ),
-              const SizedBox(width: 12),
+              Container(width: 3, color: color),
               Expanded(
-                child: Column(
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  children: [
-                    Row(children: [
-                      _Chip(match.matchType),
-                      const SizedBox(width: 6),
-                      Text(dateStr,
-                          style: const TextStyle(
-                              color: Color(0xFF8B949E), fontSize: 12)),
-                    ]),
-                    const SizedBox(height: 4),
-                    Row(children: [
-                      const Icon(Icons.timer_outlined,
-                          size: 13, color: Color(0xFF484F58)),
-                      const SizedBox(width: 3),
-                      Text(match.durationStr,
-                          style: const TextStyle(
-                              color: Color(0xFF8B949E), fontSize: 12)),
-                      if (match.remark.isNotEmpty) ...[
-                        const SizedBox(width: 10),
-                        const Icon(Icons.star_outline,
-                            size: 13, color: Color(0xFF484F58)),
-                        const SizedBox(width: 3),
-                        Text(match.remark,
-                            style: const TextStyle(
-                                color: Color(0xFF8B949E), fontSize: 12)),
+                child: ColoredBox(
+                  color: const Color(0xFF161B22),
+                  child: Padding(
+                    padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 12),
+                    child: Row(
+                      children: [
+                        Container(
+                          width: 38, height: 38,
+                          decoration: BoxDecoration(
+                            color: color.withValues(alpha: 0.15),
+                            shape: BoxShape.circle,
+                          ),
+                          alignment: Alignment.center,
+                          child: Text(_label,
+                              style: TextStyle(
+                                  color: color,
+                                  fontWeight: FontWeight.bold,
+                                  fontSize: 13)),
+                        ),
+                        const SizedBox(width: 12),
+                        Expanded(
+                          child: Column(
+                            crossAxisAlignment: CrossAxisAlignment.start,
+                            children: [
+                              Row(children: [
+                                _Chip(match.matchType),
+                                const SizedBox(width: 6),
+                                Text(dateStr,
+                                    style: const TextStyle(
+                                        color: Color(0xFF8B949E), fontSize: 12)),
+                              ]),
+                              const SizedBox(height: 4),
+                              Row(children: [
+                                const Icon(Icons.timer_outlined,
+                                    size: 13, color: Color(0xFF484F58)),
+                                const SizedBox(width: 3),
+                                Text(match.durationStr,
+                                    style: const TextStyle(
+                                        color: Color(0xFF8B949E), fontSize: 12)),
+                                if (match.remark.isNotEmpty) ...[
+                                  const SizedBox(width: 10),
+                                  const Icon(Icons.star_outline,
+                                      size: 13, color: Color(0xFF484F58)),
+                                  const SizedBox(width: 3),
+                                  Text(match.remark,
+                                      style: const TextStyle(
+                                          color: Color(0xFF8B949E), fontSize: 12)),
+                                ],
+                              ]),
+                            ],
+                          ),
+                        ),
+                        Column(
+                          crossAxisAlignment: CrossAxisAlignment.end,
+                          children: [
+                            Text('#${match.gameId}',
+                                style: const TextStyle(
+                                    color: Color(0xFF484F58), fontSize: 11)),
+                            const SizedBox(height: 4),
+                            const Icon(Icons.chevron_right,
+                                color: Color(0xFF484F58), size: 18),
+                          ],
+                        ),
                       ],
-                    ]),
-                  ],
+                    ),
+                  ),
                 ),
-              ),
-              Column(
-                crossAxisAlignment: CrossAxisAlignment.end,
-                children: [
-                  Text('#${match.gameId}',
-                      style: const TextStyle(
-                          color: Color(0xFF484F58), fontSize: 11)),
-                  const SizedBox(height: 4),
-                  const Icon(Icons.chevron_right,
-                      color: Color(0xFF484F58), size: 18),
-                ],
               ),
             ],
           ),
