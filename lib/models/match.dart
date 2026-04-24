@@ -263,8 +263,14 @@ class PlayerProfile {
     final pi = j['player_info'] as Map<String, dynamic>? ?? j;
     return PlayerProfile(
       playerId:   (pi['id'] as num?)?.toInt() ?? 0,
-      userId:     pi['user_id']?.toString() ?? '',
-      nickname:   pi['nickname']?.toString() ?? pi['nick']?.toString() ?? '',
+      // extid = mall4j userId, used for match history URL
+      userId:     pi['extid']?.toString()
+                  ?? pi['user_id']?.toString()
+                  ?? pi['userId']?.toString() ?? '',
+      nickname:   pi['name']?.toString()
+                  ?? pi['nickname']?.toString()
+                  ?? pi['nick_name']?.toString()
+                  ?? pi['nick']?.toString() ?? '',
       avatar:     pi['avatar']?.toString() ?? '',
       rankName:   pi['rank_name']?.toString() ?? '',
       rankPoints: (pi['rank_points'] as num?)?.toDouble() ?? 0,
