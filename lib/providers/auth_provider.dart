@@ -74,7 +74,7 @@ class AuthProvider extends ChangeNotifier {
       lastLadderData = {};
       try {
         final seasons    = await api.seasons();
-        final seasonList = (seasons['season_list'] as List?)
+        final seasonList = ((seasons['season_list'] ?? seasons['list']) as List?)
                 ?.cast<Map<String, dynamic>>() ?? [];
         if (seasonList.isNotEmpty) {
           final actId = (seasonList.first['activity_id'] as num).toInt();

@@ -500,8 +500,9 @@ class _PlayerRow extends StatelessWidget {
                 spacing: 3,
                 runSpacing: 3,
                 children: List.generate(6, (i) {
-                  final name = i < p.items.length ? p.items[i] : '';
-                  return _ItemSlot(name: name);
+                  final name     = i < p.items.length      ? p.items[i]      : '';
+                  final imageUrl = i < p.itemImages.length ? p.itemImages[i] : '';
+                  return _ItemSlot(name: name, imageUrl: imageUrl);
                 }),
               ),
             ),
@@ -663,14 +664,16 @@ class _Cell extends StatelessWidget {
 
 class _ItemSlot extends StatelessWidget {
   final String name;
-  const _ItemSlot({required this.name});
+  final String imageUrl;
+  const _ItemSlot({required this.name, this.imageUrl = ''});
 
   static const _w = 26.0;
   static const _h = 26.0;
 
   @override
   Widget build(BuildContext context) {
-    final isEmpty = name.isEmpty;
+    final isEmpty   = name.isEmpty;
+    final hasImage  = imageUrl.isNotEmpty;
     return Tooltip(
       message: name,
       child: Container(
@@ -687,24 +690,37 @@ class _ItemSlot extends StatelessWidget {
                 : const Color(0xFF444C56),
           ),
         ),
-        alignment: Alignment.center,
         child: isEmpty
             ? const Icon(Icons.add, size: 10, color: Color(0xFF3D444D))
-            : Text(
-                // abbreviate to first 3 chars for small slot
-                name.length > 3 ? name.substring(0, 3) : name,
-                style: const TextStyle(
-                    color: Color(0xFFCDD9E5),
-                    fontSize: 7,
-                    fontWeight: FontWeight.w500,
-                    height: 1.1),
-                textAlign: TextAlign.center,
-                overflow: TextOverflow.clip,
-                maxLines: 2,
-              ),
+            : hasImage
+                ? ClipRRect(
+                    borderRadius: BorderRadius.circular(3),
+                    child: Image.network(
+                      imageUrl,
+                      width: _w,
+                      height: _h,
+                      fit: BoxFit.cover,
+                      errorBuilder: (_, __, ___) => _nameText(),
+                    ),
+                  )
+                : _nameText(),
       ),
     );
   }
+
+  Widget _nameText() => Center(
+    child: Text(
+      name.length > 3 ? name.substring(0, 3) : name,
+      style: const TextStyle(
+          color: Color(0xFFCDD9E5),
+          fontSize: 7,
+          fontWeight: FontWeight.w500,
+          height: 1.1),
+      textAlign: TextAlign.center,
+      overflow: TextOverflow.clip,
+      maxLines: 2,
+    ),
+  );
 }
 
 // ── Type badge ─────────────────────────────────────────────────────────────

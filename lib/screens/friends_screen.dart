@@ -57,7 +57,7 @@ class _FriendsScreenState extends State<FriendsScreen> {
                   child: TextField(
                     controller: _searchCtrl,
                     style: const TextStyle(color: Colors.white),
-                    keyboardType: TextInputType.number,
+                    keyboardType: TextInputType.text,
                     textInputAction: TextInputAction.search,
                     onSubmitted: (_) => _search(),
                     decoration: InputDecoration(

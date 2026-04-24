@@ -138,7 +138,8 @@ class PlayerScore {
   final double participationRate;
   final bool isMostKills;
   final double mvpScore;
-  final List<String> items;       // inventory names
+  final List<String> items;       // inventory names (for tooltip)
+  final List<String> itemImages;  // inventory image URLs
   final List<RuneRecord> runes;
 
   const PlayerScore({
@@ -167,6 +168,7 @@ class PlayerScore {
     required this.isMostKills,
     required this.mvpScore,
     required this.items,
+    required this.itemImages,
     required this.runes,
   });
 
@@ -209,6 +211,13 @@ class PlayerScore {
       isMostKills:      j['is_most_kills'] == true || mvp['is_most_kills'] == true,
       mvpScore:         (mvp['score'] as num?)?.toDouble() ?? 0,
       items:            inventory.map((e) => e['name']?.toString() ?? '').toList(),
+      itemImages:       inventory.map((e) =>
+          e['image_url']?.toString()
+          ?? e['icon']?.toString()
+          ?? e['img_url']?.toString()
+          ?? e['img']?.toString()
+          ?? e['pic']?.toString()
+          ?? '').toList(),
       runes:            runeList.map(RuneRecord.fromJson).toList(),
     );
   }

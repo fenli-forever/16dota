@@ -153,6 +153,12 @@ class ApiClient {
       'POST', '$_ladderApi/api/leaderboard/super_dota/record',
       {'activity_id': activityId, 'battle_type': battleType},
     );
+    if (resp['success'] != true) {
+      final msg = resp['message']?.toString()
+          ?? resp['msg']?.toString()
+          ?? '获取天梯数据失败';
+      throw Exception(msg);
+    }
     return resp['data'] as Map<String, dynamic>? ?? {};
   }
 
