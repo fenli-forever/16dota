@@ -1,7 +1,9 @@
 import 'package:flutter/material.dart';
 import 'package:intl/intl.dart';
+import 'package:provider/provider.dart';
 import '../api/client.dart';
 import '../models/match.dart';
+import '../providers/friends_provider.dart';
 import 'match_detail_screen.dart';
 
 /// Displays match history for any given user (self or searched player).
@@ -11,6 +13,8 @@ class UserMatchHistoryScreen extends StatefulWidget {
   /// Dota internal player ID (player_info.id). Always present when player is found.
   final String playerId;
   final String displayName;
+  final String avatar;    // for adding to friends
+  final String rankName;  // for adding to friends
   final ApiClient api;
 
   const UserMatchHistoryScreen({
@@ -18,6 +22,8 @@ class UserMatchHistoryScreen extends StatefulWidget {
     required this.userId,
     required this.playerId,
     required this.displayName,
+    this.avatar   = '',
+    this.rankName = '',
     required this.api,
   });
 
@@ -138,6 +144,34 @@ class _UserMatchHistoryScreenState extends State<UserMatchHistoryScreen> {
           ],
         ),
         actions: [
+          // Star button: add/remove friend (only when viewing someone else's history)
+          if (widget.userId.isNotEmpty && widget.userId != widget.api.userId)
+            Consumer<FriendsProvider>(
+              builder: (_, friends, __) {
+                final isFriend = friends.isFriend(widget.userId);
+                return IconButton(
+                  icon: Icon(
+                    isFriend ? Icons.star_rounded : Icons.star_outline_rounded,
+                    color: isFriend
+                        ? const Color(0xFFE8A020)
+                        : const Color(0xFF8B949E),
+                  ),
+                  tooltip: isFriend ? '移除好友' : '加为好友',
+                  onPressed: () {
+                    if (isFriend) {
+                      friends.removeFriend(widget.userId);
+                    } else {
+                      friends.addFriend(FriendEntry(
+                        userId:   widget.userId,
+                        nickname: widget.displayName,
+                        avatar:   widget.avatar,
+                        rankName: widget.rankName,
+                      ));
+                    }
+                  },
+                );
+              },
+            ),
           IconButton(
             icon: const Icon(Icons.refresh, color: Color(0xFF8B949E)),
             onPressed: _refresh,

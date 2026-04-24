@@ -44,8 +44,8 @@ class _HomeScreenState extends State<HomeScreen> {
             label: '天梯',
           ),
           BottomNavigationBarItem(
-            icon: Icon(Icons.search),
-            label: '搜索',
+            icon: Icon(Icons.people_outline),
+            label: '好友',
           ),
           BottomNavigationBarItem(
             icon: Icon(Icons.person),

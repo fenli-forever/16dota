@@ -398,6 +398,8 @@ class _PlayerCard extends StatelessWidget {
                                   playerId:    '',
                                   displayName: p.nickname.isNotEmpty
                                       ? p.nickname : p.heroName,
+                                  avatar:      p.avatar,
+                                  rankName:    p.rankName,
                                   api:         api,
                                 ),
                               ),
