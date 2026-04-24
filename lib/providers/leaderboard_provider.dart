@@ -83,7 +83,7 @@ class LeaderboardProvider extends ChangeNotifier {
           lastError = e;
         }
       }
-      if (data.isEmpty && lastError != null) throw lastError!;
+      if (data.isEmpty && lastError != null) throw lastError;
       _result = LeaderboardResult.fromJson(data);
     } catch (e) {
       _error = e.toString();
