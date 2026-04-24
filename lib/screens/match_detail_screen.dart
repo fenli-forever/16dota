@@ -156,6 +156,20 @@ class _DetailBody extends StatelessWidget {
     final totalDmg =
         detail.players.fold(0, (s, p) => s + p.heroDamage);
 
+    if (sorted.isEmpty) {
+      return Column(
+        children: [
+          _InfoBar(detail: detail, match: match),
+          const Expanded(
+            child: Center(
+              child: Text('暂无详情数据',
+                  style: TextStyle(color: Color(0xFF8B949E), fontSize: 14)),
+            ),
+          ),
+        ],
+      );
+    }
+
     return Column(
       crossAxisAlignment: CrossAxisAlignment.stretch,
       children: [

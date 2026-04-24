@@ -118,6 +118,12 @@ class ApiClient {
     final url = '$_rustwarApi/api/teamup/$_userId/match_history'
         '?per_page=$perPage&page=$page&is_valid=true';
     final resp = await _authedReq('GET', url, null);
+    if (resp['success'] != true) {
+      final msg = resp['message']?.toString()
+          ?? resp['msg']?.toString()
+          ?? '获取战绩失败';
+      throw Exception(msg);
+    }
     return resp['data'] as List? ?? [];
   }
 
@@ -125,8 +131,14 @@ class ApiClient {
   Future<Map<String, dynamic>> settlement(String gameId) async {
     final resp = await _authedReq(
       'POST', '$_teamupApi/api/teamup/game_info/settlement',
-      {'game_id': gameId},
+      {'game_id': int.tryParse(gameId) ?? gameId},
     );
+    if (resp['success'] != true) {
+      final msg = resp['message']?.toString()
+          ?? resp['msg']?.toString()
+          ?? '获取详情失败';
+      throw Exception(msg);
+    }
     return resp['data'] as Map<String, dynamic>? ?? {};
   }
 
