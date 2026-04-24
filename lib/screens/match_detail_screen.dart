@@ -332,201 +332,213 @@ class _PlayerCard extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final p      = player;
-    final tc     = isWinTeam ? const Color(0xFF2EA043) : const Color(0xFFDA3633);
-    final rpClr  = p.incRankPoints >= 0
-        ? const Color(0xFF2EA043)
-        : const Color(0xFFDA3633);
-    final rpSign = p.incRankPoints >= 0 ? '+' : '';
-    final dmgPct = totalDmg > 0 ? p.heroDamage / totalDmg * 100 : 0.0;
+    final p       = player;
+    final tc      = isWinTeam ? const Color(0xFF2EA043) : const Color(0xFFDA3633);
+    final rpClr   = p.incRankPoints >= 0 ? const Color(0xFF2EA043) : const Color(0xFFDA3633);
+    final rpSign  = p.incRankPoints >= 0 ? '+' : '';
+    final dmgPct  = totalDmg > 0 ? p.heroDamage / totalDmg * 100 : 0.0;
+    final accent  = isSelf ? const Color(0xFFE8A020) : tc;
+    final cardBg  = isSelf
+        ? const Color(0xFFE8A020).withValues(alpha: 0.06)
+        : const Color(0xFF161B22);
 
+    // Flutter requires uniform border when borderRadius is set.
+    // We achieve the colored left accent via an inner accent bar widget.
     return Container(
       margin: const EdgeInsets.fromLTRB(12, 0, 12, 6),
+      clipBehavior: Clip.antiAlias,
       decoration: BoxDecoration(
-        color: isSelf
-            ? const Color(0xFFE8A020).withValues(alpha: 0.06)
-            : const Color(0xFF161B22),
         borderRadius: BorderRadius.circular(8),
-        border: Border(
-          left: BorderSide(
-            color: isSelf
-                ? const Color(0xFFE8A020)
-                : tc.withValues(alpha: 0.5),
-            width: 3,
-          ),
-          top: BorderSide(color: const Color(0xFF21262D), width: 0.5),
-          right: BorderSide(color: const Color(0xFF21262D), width: 0.5),
-          bottom: BorderSide(color: const Color(0xFF21262D), width: 0.5),
-        ),
+        border: Border.all(color: const Color(0xFF21262D), width: 0.5),
       ),
-      child: Padding(
-        padding: const EdgeInsets.fromLTRB(10, 10, 10, 10),
-        child: Column(
-          crossAxisAlignment: CrossAxisAlignment.start,
+      child: IntrinsicHeight(
+        child: Row(
+          crossAxisAlignment: CrossAxisAlignment.stretch,
           children: [
-            // ── Row 1: icon | avatar | hero+nick+rank | KDA ──────────────
-            Row(
-              crossAxisAlignment: CrossAxisAlignment.center,
-              children: [
-                // MVP / MostKills indicator
-                SizedBox(
-                  width: 18,
-                  child: p.mvpScore > 0
-                      ? const Icon(Icons.star_rounded,
-                          size: 16, color: Color(0xFFE8A020))
-                      : p.isMostKills
-                          ? const Icon(Icons.military_tech,
-                              size: 16, color: Color(0xFF58A6FF))
-                          : null,
-                ),
-                const SizedBox(width: 6),
-                // Avatar
-                CircleAvatar(
-                  radius: 20,
-                  backgroundColor: const Color(0xFF30363D),
-                  backgroundImage: p.avatar.isNotEmpty
-                      ? NetworkImage(p.avatar)
-                      : null,
-                  child: p.avatar.isEmpty
-                      ? Text(
-                          p.heroName.isNotEmpty ? p.heroName[0] : '?',
-                          style: const TextStyle(
-                              color: Colors.white,
-                              fontSize: 14,
-                              fontWeight: FontWeight.bold),
-                        )
-                      : null,
-                ),
-                const SizedBox(width: 8),
-                // Hero + Nickname + Rank
-                Expanded(
+            // Left accent bar
+            Container(width: 3, color: accent),
+            // Content
+            Expanded(
+              child: ColoredBox(
+                color: cardBg,
+                child: Padding(
+                  padding: const EdgeInsets.all(10),
                   child: Column(
                     crossAxisAlignment: CrossAxisAlignment.start,
-                    mainAxisSize: MainAxisSize.min,
                     children: [
-                      Text(
-                        p.heroName.isEmpty ? p.nickname : p.heroName,
-                        style: TextStyle(
-                          color: isSelf
-                              ? const Color(0xFFE8A020)
-                              : Colors.white,
-                          fontSize: 14,
-                          fontWeight: FontWeight.bold,
-                        ),
-                        overflow: TextOverflow.ellipsis,
+
+                      // ── Row 1: MVP icon | avatar | hero+nick | KDA ──────
+                      Row(
+                        crossAxisAlignment: CrossAxisAlignment.center,
+                        children: [
+                          SizedBox(
+                            width: 18,
+                            child: p.mvpScore > 0
+                                ? const Icon(Icons.star_rounded,
+                                    size: 16, color: Color(0xFFE8A020))
+                                : p.isMostKills
+                                    ? const Icon(Icons.military_tech,
+                                        size: 16, color: Color(0xFF58A6FF))
+                                    : null,
+                          ),
+                          const SizedBox(width: 6),
+                          CircleAvatar(
+                            radius: 20,
+                            backgroundColor: const Color(0xFF30363D),
+                            backgroundImage: p.avatar.isNotEmpty
+                                ? NetworkImage(p.avatar)
+                                : null,
+                            child: p.avatar.isEmpty
+                                ? Text(
+                                    p.heroName.isNotEmpty ? p.heroName[0] : '?',
+                                    style: const TextStyle(
+                                        color: Colors.white,
+                                        fontSize: 14,
+                                        fontWeight: FontWeight.bold),
+                                  )
+                                : null,
+                          ),
+                          const SizedBox(width: 8),
+                          Expanded(
+                            child: Column(
+                              crossAxisAlignment: CrossAxisAlignment.start,
+                              mainAxisSize: MainAxisSize.min,
+                              children: [
+                                Text(
+                                  p.heroName.isEmpty ? p.nickname : p.heroName,
+                                  style: TextStyle(
+                                    color: isSelf
+                                        ? const Color(0xFFE8A020)
+                                        : Colors.white,
+                                    fontSize: 14,
+                                    fontWeight: FontWeight.bold,
+                                  ),
+                                  overflow: TextOverflow.ellipsis,
+                                ),
+                                if (p.heroName.isNotEmpty)
+                                  Text(p.nickname,
+                                      style: const TextStyle(
+                                          color: Color(0xFF8B949E), fontSize: 11),
+                                      overflow: TextOverflow.ellipsis),
+                                if (p.rankName.isNotEmpty)
+                                  Text(p.rankName,
+                                      style: TextStyle(
+                                          color: _tierColor(p.rankName),
+                                          fontSize: 10)),
+                              ],
+                            ),
+                          ),
+                          Column(
+                            crossAxisAlignment: CrossAxisAlignment.end,
+                            mainAxisSize: MainAxisSize.min,
+                            children: [
+                              RichText(
+                                text: TextSpan(
+                                  style: const TextStyle(
+                                      fontSize: 16,
+                                      fontWeight: FontWeight.bold),
+                                  children: [
+                                    TextSpan(text: '${p.kills}',
+                                        style: const TextStyle(
+                                            color: Color(0xFF3FB950))),
+                                    const TextSpan(text: '/',
+                                        style: TextStyle(
+                                            color: Color(0xFF484F58),
+                                            fontWeight: FontWeight.normal)),
+                                    TextSpan(text: '${p.deaths}',
+                                        style: const TextStyle(
+                                            color: Color(0xFFFF7B72))),
+                                    const TextSpan(text: '/',
+                                        style: TextStyle(
+                                            color: Color(0xFF484F58),
+                                            fontWeight: FontWeight.normal)),
+                                    TextSpan(text: '${p.assists}',
+                                        style: const TextStyle(
+                                            color: Color(0xFF79C0FF))),
+                                  ],
+                                ),
+                              ),
+                              Text(
+                                '${(p.participationRate * 100).toStringAsFixed(0)}% 参战',
+                                style: const TextStyle(
+                                    color: Color(0xFF8B949E), fontSize: 10),
+                              ),
+                            ],
+                          ),
+                        ],
                       ),
-                      if (p.heroName.isNotEmpty)
-                        Text(p.nickname,
-                            style: const TextStyle(
-                                color: Color(0xFF8B949E), fontSize: 11),
-                            overflow: TextOverflow.ellipsis),
-                      if (p.rankName.isNotEmpty)
-                        Text(p.rankName,
-                            style: TextStyle(
-                                color: _tierColor(p.rankName), fontSize: 10)),
+
+                      const SizedBox(height: 10),
+
+                      // ── Row 2: 6 items + gold ─────────────────────────────
+                      Row(
+                        children: [
+                          ...List.generate(6, (i) {
+                            final name     = i < p.items.length      ? p.items[i]      : '';
+                            final imageUrl = i < p.itemImages.length ? p.itemImages[i] : '';
+                            return Padding(
+                              padding: const EdgeInsets.only(right: 4),
+                              child: _ItemSlot(name: name, imageUrl: imageUrl),
+                            );
+                          }),
+                          const Spacer(),
+                          const Icon(Icons.monetization_on,
+                              size: 13, color: Color(0xFFFFD700)),
+                          const SizedBox(width: 3),
+                          Text(_fmt(p.gold),
+                              style: const TextStyle(
+                                  color: Color(0xFFFFD700),
+                                  fontSize: 13,
+                                  fontWeight: FontWeight.bold)),
+                        ],
+                      ),
+
+                      const SizedBox(height: 10),
+
+                      // ── Row 3: stat bar ──────────────────────────────────
+                      Row(
+                        children: [
+                          Expanded(child: _StatCell(
+                            label: '天梯积分',
+                            value: p.rankPoints.toStringAsFixed(0),
+                            sub: '$rpSign${p.incRankPoints.toStringAsFixed(0)}',
+                            subColor: rpClr,
+                            color: Colors.white,
+                          )),
+                          Expanded(child: _StatCell(
+                            label: '参战率',
+                            value: '${(p.participationRate * 100).toStringAsFixed(0)}%',
+                            color: const Color(0xFFCDD9E5),
+                          )),
+                          Expanded(child: _StatCell(
+                            label: '正/反补',
+                            value: '${p.lastHits}/${p.denies}',
+                            color: const Color(0xFFCDD9E5),
+                          )),
+                          Expanded(child: _StatCell(
+                            label: '伤害',
+                            value: _fmt(p.heroDamage),
+                            sub: '${dmgPct.toStringAsFixed(1)}%',
+                            subColor: const Color(0xFF8B949E),
+                            color: const Color(0xFFFF7B72),
+                          )),
+                          Expanded(child: _StatCell(
+                            label: '治疗',
+                            value: _fmt(p.heroHealing),
+                            color: const Color(0xFF3FB950),
+                          )),
+                          Expanded(child: _StatCell(
+                            label: '推塔',
+                            value: _fmt(p.towerDamage),
+                            color: const Color(0xFF79C0FF),
+                          )),
+                        ],
+                      ),
+
                     ],
                   ),
                 ),
-                // KDA
-                Column(
-                  crossAxisAlignment: CrossAxisAlignment.end,
-                  mainAxisSize: MainAxisSize.min,
-                  children: [
-                    RichText(
-                      text: TextSpan(
-                        style: const TextStyle(
-                            fontSize: 16, fontWeight: FontWeight.bold),
-                        children: [
-                          TextSpan(text: '${p.kills}',
-                              style: const TextStyle(color: Color(0xFF3FB950))),
-                          const TextSpan(text: '/',
-                              style: TextStyle(color: Color(0xFF484F58),
-                                  fontWeight: FontWeight.normal)),
-                          TextSpan(text: '${p.deaths}',
-                              style: const TextStyle(color: Color(0xFFFF7B72))),
-                          const TextSpan(text: '/',
-                              style: TextStyle(color: Color(0xFF484F58),
-                                  fontWeight: FontWeight.normal)),
-                          TextSpan(text: '${p.assists}',
-                              style: const TextStyle(color: Color(0xFF79C0FF))),
-                        ],
-                      ),
-                    ),
-                    Text(
-                      '${(p.participationRate * 100).toStringAsFixed(0)}% 参战',
-                      style: const TextStyle(
-                          color: Color(0xFF8B949E), fontSize: 10),
-                    ),
-                  ],
-                ),
-              ],
-            ),
-
-            const SizedBox(height: 10),
-
-            // ── Row 2: Items + Gold ───────────────────────────────────────
-            Row(
-              children: [
-                ...List.generate(6, (i) {
-                  final name     = i < p.items.length      ? p.items[i]      : '';
-                  final imageUrl = i < p.itemImages.length ? p.itemImages[i] : '';
-                  return Padding(
-                    padding: const EdgeInsets.only(right: 4),
-                    child: _ItemSlot(name: name, imageUrl: imageUrl),
-                  );
-                }),
-                const Spacer(),
-                const Icon(Icons.monetization_on,
-                    size: 13, color: Color(0xFFFFD700)),
-                const SizedBox(width: 3),
-                Text(_fmt(p.gold),
-                    style: const TextStyle(
-                        color: Color(0xFFFFD700),
-                        fontSize: 13,
-                        fontWeight: FontWeight.bold)),
-              ],
-            ),
-
-            const SizedBox(height: 10),
-
-            // ── Row 3: 6-cell stat bar ────────────────────────────────────
-            Row(
-              children: [
-                Expanded(child: _StatCell(
-                  label: '天梯积分',
-                  value: p.rankPoints.toStringAsFixed(0),
-                  sub:   '$rpSign${p.incRankPoints.toStringAsFixed(0)}',
-                  subColor: rpClr,
-                  color: Colors.white,
-                )),
-                Expanded(child: _StatCell(
-                  label: '参战率',
-                  value: '${(p.participationRate * 100).toStringAsFixed(0)}%',
-                  color: const Color(0xFFCDD9E5),
-                )),
-                Expanded(child: _StatCell(
-                  label: '正/反补',
-                  value: '${p.lastHits}/${p.denies}',
-                  color: const Color(0xFFCDD9E5),
-                )),
-                Expanded(child: _StatCell(
-                  label: '伤害',
-                  value: _fmt(p.heroDamage),
-                  sub:   '${dmgPct.toStringAsFixed(1)}%',
-                  subColor: const Color(0xFF8B949E),
-                  color: const Color(0xFFFF7B72),
-                )),
-                Expanded(child: _StatCell(
-                  label: '治疗',
-                  value: _fmt(p.heroHealing),
-                  color: const Color(0xFF3FB950),
-                )),
-                Expanded(child: _StatCell(
-                  label: '推塔',
-                  value: _fmt(p.towerDamage),
-                  color: const Color(0xFF79C0FF),
-                )),
-              ],
+              ),
             ),
           ],
         ),

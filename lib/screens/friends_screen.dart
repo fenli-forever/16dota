@@ -378,21 +378,21 @@ class _ProfileHeader extends StatelessWidget {
             // Stats row
             Row(
               children: [
-                _Stat('段位分',
+                Expanded(child: _Stat('段位分',
                     profile.rankPoints.toStringAsFixed(0),
-                    const Color(0xFFE8A020)),
-                _Stat('MMR',
+                    const Color(0xFFE8A020))),
+                Expanded(child: _Stat('MMR',
                     profile.mmr.toStringAsFixed(0),
-                    const Color(0xFF58A6FF)),
-                _Stat('胜率',
+                    const Color(0xFF58A6FF))),
+                Expanded(child: _Stat('胜率',
                     '${(winRate * 100).toStringAsFixed(1)}%',
                     winRate >= 0.5
                         ? const Color(0xFF2EA043)
-                        : const Color(0xFFDA3633)),
-                _Stat('胜场', '${profile.winCount}',
-                    const Color(0xFF2EA043)),
-                _Stat('败场', '${profile.loseCount}',
-                    const Color(0xFFDA3633)),
+                        : const Color(0xFFDA3633))),
+                Expanded(child: _Stat('胜场', '${profile.winCount}',
+                    const Color(0xFF2EA043))),
+                Expanded(child: _Stat('败场', '${profile.loseCount}',
+                    const Color(0xFFDA3633))),
               ],
             ),
           ],
@@ -409,20 +409,18 @@ class _Stat extends StatelessWidget {
   const _Stat(this.label, this.value, this.color);
 
   @override
-  Widget build(BuildContext context) => Expanded(
-    child: Column(
-      children: [
-        Text(value,
-            style: TextStyle(
-                color: color,
-                fontSize: 14,
-                fontWeight: FontWeight.bold)),
-        const SizedBox(height: 3),
-        Text(label,
-            style: const TextStyle(
-                color: Color(0xFF8B949E), fontSize: 10)),
-      ],
-    ),
+  Widget build(BuildContext context) => Column(
+    children: [
+      Text(value,
+          style: TextStyle(
+              color: color,
+              fontSize: 14,
+              fontWeight: FontWeight.bold)),
+      const SizedBox(height: 3),
+      Text(label,
+          style: const TextStyle(
+              color: Color(0xFF8B949E), fontSize: 10)),
+    ],
   );
 }
 
