@@ -5,32 +5,6 @@ import 'package:intl/intl.dart';
 import '../api/client.dart';
 import '../models/match.dart';
 
-// ── Table layout constants ─────────────────────────────────────────────────
-
-class _Col {
-  final String label;
-  final double width;
-  const _Col(this.label, this.width);
-}
-
-const _kMvpW    = 24.0;
-const _kPlayerW = 220.0;
-const _kItemsW  = 178.0; // 6 × 26px + 5 × 3px gap + some padding
-
-const _statCols = <_Col>[
-  _Col('参战率',   56),
-  _Col('杀/死/助',  92),
-  _Col('天梯积分',  84),
-  _Col('正补/反补', 74),
-  _Col('经济',     68),
-  _Col('伤害',     90),
-  _Col('治疗',     68),
-  _Col('推塔',     68),
-];
-
-// 24 + 220 + 178 + (56+92+84+74+68+90+68+68) = 422 + 600 = 1022
-const _kTableWidth = 1022.0;
-
 // ── Screen ─────────────────────────────────────────────────────────────────
 
 class MatchDetailScreen extends StatefulWidget {
@@ -152,7 +126,6 @@ class _DetailBody extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    // Group players by team; win team first
     final teams = <String, List<PlayerScore>>{};
     for (final p in detail.players) {
       teams.putIfAbsent(p.teamName, () => []).add(p);
@@ -164,51 +137,42 @@ class _DetailBody extends StatelessWidget {
         return 0;
       });
 
-    final totalDmg =
-        detail.players.fold(0, (s, p) => s + p.heroDamage);
+    final totalDmg = detail.players.fold(0, (s, p) => s + p.heroDamage);
 
     if (sorted.isEmpty) {
-      return Column(
-        children: [
-          _InfoBar(detail: detail, match: match),
-          const Expanded(
-            child: Center(
-              child: Text('暂无详情数据',
-                  style: TextStyle(color: Color(0xFF8B949E), fontSize: 14)),
-            ),
+      return Column(children: [
+        _InfoBar(detail: detail, match: match),
+        const Expanded(
+          child: Center(
+            child: Text('暂无详情数据',
+                style: TextStyle(color: Color(0xFF8B949E), fontSize: 14)),
           ),
-        ],
-      );
+        ),
+      ]);
     }
 
     return Column(
-      crossAxisAlignment: CrossAxisAlignment.stretch,
       children: [
-        // Info bar (duration / mode / win team)
         _InfoBar(detail: detail, match: match),
-        // Stats table
         Expanded(
-          child: SingleChildScrollView(           // vertical
-            child: SingleChildScrollView(         // horizontal
-              scrollDirection: Axis.horizontal,
-              child: SizedBox(
-                width: _kTableWidth,
-                child: Column(
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  children: [
-                    _ColumnHeader(),
-                    ...sorted.map((e) => _TeamSection(
-                      teamName:    e.key,
-                      players:     e.value,
-                      isWinTeam:   e.key == detail.winTeamName,
-                      selfUserId:  selfUserId,
-                      totalDmg:    totalDmg,
-                    )),
-                    const SizedBox(height: 24),
-                  ],
+          child: ListView(
+            padding: const EdgeInsets.only(bottom: 24),
+            children: [
+              for (final e in sorted) ...[
+                _TeamHeader(
+                  teamName:  e.key,
+                  isWinTeam: e.key == detail.winTeamName,
+                  kills:     e.value.fold(0, (s, p) => s + p.kills),
                 ),
-              ),
-            ),
+                for (final p in e.value)
+                  _PlayerCard(
+                    player:    p,
+                    isSelf:    p.userId == selfUserId,
+                    isWinTeam: e.key == detail.winTeamName,
+                    totalDmg:  totalDmg,
+                  ),
+              ],
+            ],
           ),
         ),
       ],
@@ -241,8 +205,7 @@ class _InfoBar extends StatelessWidget {
                 size: 14, color: Color(0xFFE8A020)),
             const SizedBox(width: 4),
             Text('${detail.winTeamName} 获胜',
-                style: const TextStyle(
-                    color: Color(0xFFE8A020), fontSize: 12)),
+                style: const TextStyle(color: Color(0xFFE8A020), fontSize: 12)),
           ],
           const Spacer(),
           Text('# ${match.gameId}',
@@ -264,138 +227,64 @@ class _InfoChip extends StatelessWidget {
     children: [
       Icon(icon, size: 13, color: const Color(0xFF8B949E)),
       const SizedBox(width: 4),
-      Text(text,
-          style: const TextStyle(color: Color(0xFF8B949E), fontSize: 12)),
+      Text(text, style: const TextStyle(color: Color(0xFF8B949E), fontSize: 12)),
     ],
   );
 }
 
-// ── Column header row ──────────────────────────────────────────────────────
+// ── Team header ────────────────────────────────────────────────────────────
 
-class _ColumnHeader extends StatelessWidget {
-  const _ColumnHeader();
-
-  @override
-  Widget build(BuildContext context) {
-    return Container(
-      color: const Color(0xFF1C2128),
-      padding: const EdgeInsets.symmetric(vertical: 7),
-      child: Row(
-        children: [
-          const SizedBox(width: _kMvpW),
-          const SizedBox(
-            width: _kPlayerW,
-            child: Padding(
-              padding: EdgeInsets.only(left: 4),
-              child: Text('玩家',
-                  style: TextStyle(
-                      color: Color(0xFF8B949E), fontSize: 11,
-                      fontWeight: FontWeight.w600)),
-            ),
-          ),
-          const SizedBox(
-            width: _kItemsW,
-            child: Text('装备',
-                style: TextStyle(
-                    color: Color(0xFF8B949E), fontSize: 11,
-                    fontWeight: FontWeight.w600)),
-          ),
-          ..._statCols.map((c) => SizedBox(
-            width: c.width,
-            child: Text(c.label,
-                textAlign: TextAlign.center,
-                style: const TextStyle(
-                    color: Color(0xFF8B949E), fontSize: 11,
-                    fontWeight: FontWeight.w600)),
-          )),
-        ],
-      ),
-    );
-  }
-}
-
-// ── Team section ───────────────────────────────────────────────────────────
-
-class _TeamSection extends StatelessWidget {
+class _TeamHeader extends StatelessWidget {
   final String teamName;
-  final List<PlayerScore> players;
   final bool isWinTeam;
-  final String selfUserId;
-  final int totalDmg;
-
-  const _TeamSection({
+  final int kills;
+  const _TeamHeader({
     required this.teamName,
-    required this.players,
     required this.isWinTeam,
-    required this.selfUserId,
-    required this.totalDmg,
+    required this.kills,
   });
 
   @override
   Widget build(BuildContext context) {
-    final tc = isWinTeam
-        ? const Color(0xFF2EA043)
-        : const Color(0xFFDA3633);
-    final kills = players.fold(0, (s, p) => s + p.kills);
-
-    return Column(
-      crossAxisAlignment: CrossAxisAlignment.start,
-      children: [
-        // Team header
+    final tc = isWinTeam ? const Color(0xFF2EA043) : const Color(0xFFDA3633);
+    return Container(
+      color: tc.withValues(alpha: 0.07),
+      padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
+      child: Row(children: [
+        Container(width: 3, height: 14, color: tc,
+            margin: const EdgeInsets.only(right: 8)),
+        Text(teamName.isEmpty ? '队伍' : teamName,
+            style: TextStyle(
+                color: tc, fontWeight: FontWeight.bold, fontSize: 13)),
+        const SizedBox(width: 8),
         Container(
-          color: tc.withValues(alpha: 0.07),
-          padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 7),
-          child: Row(
-            children: [
-              Container(
-                  width: 3, height: 14, color: tc,
-                  margin: const EdgeInsets.only(left: _kMvpW - 3, right: 8)),
-              Text(teamName.isEmpty ? '队伍' : teamName,
-                  style: TextStyle(
-                      color: tc, fontWeight: FontWeight.bold, fontSize: 13)),
-              const SizedBox(width: 8),
-              Container(
-                padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
-                decoration: BoxDecoration(
-                  color: tc.withValues(alpha: 0.18),
-                  borderRadius: BorderRadius.circular(3),
-                ),
-                child: Text(isWinTeam ? '胜' : '负',
-                    style: TextStyle(
-                        color: tc, fontSize: 10,
-                        fontWeight: FontWeight.bold)),
-              ),
-              const SizedBox(width: 14),
-              Icon(Icons.local_fire_department,
-                  size: 12, color: tc.withValues(alpha: 0.7)),
-              const SizedBox(width: 3),
-              Text('$kills 击杀',
-                  style: TextStyle(
-                      color: tc.withValues(alpha: 0.8), fontSize: 11)),
-            ],
+          padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
+          decoration: BoxDecoration(
+            color: tc.withValues(alpha: 0.18),
+            borderRadius: BorderRadius.circular(3),
           ),
+          child: Text(isWinTeam ? '胜' : '负',
+              style: TextStyle(color: tc, fontSize: 10, fontWeight: FontWeight.bold)),
         ),
-        // Player rows
-        ...players.map((p) => _PlayerRow(
-          player:    p,
-          isSelf:    p.userId == selfUserId,
-          isWinTeam: isWinTeam,
-          totalDmg:  totalDmg,
-        )),
-      ],
+        const SizedBox(width: 12),
+        Icon(Icons.local_fire_department, size: 12, color: tc.withValues(alpha: 0.7)),
+        const SizedBox(width: 3),
+        Text('$kills 击杀',
+            style: TextStyle(color: tc.withValues(alpha: 0.8), fontSize: 11)),
+      ]),
     );
   }
 }
 
-// ── Player row ─────────────────────────────────────────────────────────────
+// ── Player card ─────────────────────────────────────────────────────────────
 
-class _PlayerRow extends StatelessWidget {
+class _PlayerCard extends StatelessWidget {
   final PlayerScore player;
   final bool isSelf;
   final bool isWinTeam;
   final int totalDmg;
 
-  const _PlayerRow({
+  const _PlayerCard({
     required this.player,
     required this.isSelf,
     required this.isWinTeam,
@@ -404,240 +293,204 @@ class _PlayerRow extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final p       = player;
-    final tc      = isWinTeam ? const Color(0xFF2EA043) : const Color(0xFFDA3633);
-    final rpColor = p.incRankPoints >= 0
+    final p      = player;
+    final tc     = isWinTeam ? const Color(0xFF2EA043) : const Color(0xFFDA3633);
+    final rpClr  = p.incRankPoints >= 0
         ? const Color(0xFF2EA043)
         : const Color(0xFFDA3633);
-    final rpSign  = p.incRankPoints >= 0 ? '+' : '';
-    final dmgPct  = totalDmg > 0
-        ? p.heroDamage / totalDmg * 100
-        : 0.0;
+    final rpSign = p.incRankPoints >= 0 ? '+' : '';
+    final dmgPct = totalDmg > 0 ? p.heroDamage / totalDmg * 100 : 0.0;
 
     return Container(
+      margin: const EdgeInsets.fromLTRB(12, 0, 12, 6),
       decoration: BoxDecoration(
         color: isSelf
-            ? const Color(0xFFE8A020).withValues(alpha: 0.05)
-            : Colors.transparent,
+            ? const Color(0xFFE8A020).withValues(alpha: 0.06)
+            : const Color(0xFF161B22),
+        borderRadius: BorderRadius.circular(8),
         border: Border(
-          bottom: const BorderSide(color: Color(0xFF21262D)),
           left: BorderSide(
             color: isSelf
-                ? const Color(0xFFE8A020).withValues(alpha: 0.7)
-                : tc.withValues(alpha: 0.45),
+                ? const Color(0xFFE8A020)
+                : tc.withValues(alpha: 0.5),
             width: 3,
           ),
+          top: BorderSide(color: const Color(0xFF21262D), width: 0.5),
+          right: BorderSide(color: const Color(0xFF21262D), width: 0.5),
+          bottom: BorderSide(color: const Color(0xFF21262D), width: 0.5),
         ),
       ),
-      child: Row(
-        crossAxisAlignment: CrossAxisAlignment.center,
-        children: [
-          // ── MVP / star indicator ──────────────────────────────────────
-          SizedBox(
-            width: _kMvpW,
-            child: p.mvpScore > 0
-                ? const Icon(Icons.star_rounded,
-                    size: 15, color: Color(0xFFE8A020))
-                : p.isMostKills
-                    ? const Icon(Icons.military_tech,
-                        size: 15, color: Color(0xFF58A6FF))
-                    : null,
-          ),
-
-          // ── Player info ───────────────────────────────────────────────
-          SizedBox(
-            width: _kPlayerW,
-            child: Padding(
-              padding: const EdgeInsets.symmetric(vertical: 10),
-              child: Row(
-                children: [
-                  CircleAvatar(
-                    radius: 18,
-                    backgroundColor: const Color(0xFF30363D),
-                    backgroundImage: p.avatar.isNotEmpty
-                        ? NetworkImage(p.avatar)
-                        : null,
-                    child: p.avatar.isEmpty
-                        ? Text(
-                            p.heroName.isNotEmpty ? p.heroName[0] : '?',
-                            style: const TextStyle(
-                                color: Colors.white, fontSize: 13,
-                                fontWeight: FontWeight.bold),
-                          )
-                        : null,
-                  ),
-                  const SizedBox(width: 8),
-                  Expanded(
-                    child: Column(
-                      crossAxisAlignment: CrossAxisAlignment.start,
-                      mainAxisSize: MainAxisSize.min,
-                      children: [
-                        Text(
-                          p.heroName.isEmpty ? p.nickname : p.heroName,
-                          style: TextStyle(
-                            color: isSelf
-                                ? const Color(0xFFE8A020)
-                                : Colors.white,
-                            fontSize: 13,
-                            fontWeight: FontWeight.w600,
-                          ),
-                          overflow: TextOverflow.ellipsis,
+      child: Padding(
+        padding: const EdgeInsets.fromLTRB(10, 10, 10, 10),
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            // ── Row 1: icon | avatar | hero+nick+rank | KDA ──────────────
+            Row(
+              crossAxisAlignment: CrossAxisAlignment.center,
+              children: [
+                // MVP / MostKills indicator
+                SizedBox(
+                  width: 18,
+                  child: p.mvpScore > 0
+                      ? const Icon(Icons.star_rounded,
+                          size: 16, color: Color(0xFFE8A020))
+                      : p.isMostKills
+                          ? const Icon(Icons.military_tech,
+                              size: 16, color: Color(0xFF58A6FF))
+                          : null,
+                ),
+                const SizedBox(width: 6),
+                // Avatar
+                CircleAvatar(
+                  radius: 20,
+                  backgroundColor: const Color(0xFF30363D),
+                  backgroundImage: p.avatar.isNotEmpty
+                      ? NetworkImage(p.avatar)
+                      : null,
+                  child: p.avatar.isEmpty
+                      ? Text(
+                          p.heroName.isNotEmpty ? p.heroName[0] : '?',
+                          style: const TextStyle(
+                              color: Colors.white,
+                              fontSize: 14,
+                              fontWeight: FontWeight.bold),
+                        )
+                      : null,
+                ),
+                const SizedBox(width: 8),
+                // Hero + Nickname + Rank
+                Expanded(
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    mainAxisSize: MainAxisSize.min,
+                    children: [
+                      Text(
+                        p.heroName.isEmpty ? p.nickname : p.heroName,
+                        style: TextStyle(
+                          color: isSelf
+                              ? const Color(0xFFE8A020)
+                              : Colors.white,
+                          fontSize: 14,
+                          fontWeight: FontWeight.bold,
                         ),
-                        if (p.heroName.isNotEmpty)
-                          Text(p.nickname,
-                              style: const TextStyle(
-                                  color: Color(0xFF8B949E), fontSize: 10),
-                              overflow: TextOverflow.ellipsis),
-                        if (p.rankName.isNotEmpty)
-                          Text(p.rankName,
-                              style: TextStyle(
-                                  color: _tierColor(p.rankName),
-                                  fontSize: 9),
-                              overflow: TextOverflow.ellipsis),
-                      ],
-                    ),
+                        overflow: TextOverflow.ellipsis,
+                      ),
+                      if (p.heroName.isNotEmpty)
+                        Text(p.nickname,
+                            style: const TextStyle(
+                                color: Color(0xFF8B949E), fontSize: 11),
+                            overflow: TextOverflow.ellipsis),
+                      if (p.rankName.isNotEmpty)
+                        Text(p.rankName,
+                            style: TextStyle(
+                                color: _tierColor(p.rankName), fontSize: 10)),
+                    ],
                   ),
-                ],
-              ),
+                ),
+                // KDA
+                Column(
+                  crossAxisAlignment: CrossAxisAlignment.end,
+                  mainAxisSize: MainAxisSize.min,
+                  children: [
+                    RichText(
+                      text: TextSpan(
+                        style: const TextStyle(
+                            fontSize: 16, fontWeight: FontWeight.bold),
+                        children: [
+                          TextSpan(text: '${p.kills}',
+                              style: const TextStyle(color: Color(0xFF3FB950))),
+                          const TextSpan(text: '/',
+                              style: TextStyle(color: Color(0xFF484F58),
+                                  fontWeight: FontWeight.normal)),
+                          TextSpan(text: '${p.deaths}',
+                              style: const TextStyle(color: Color(0xFFFF7B72))),
+                          const TextSpan(text: '/',
+                              style: TextStyle(color: Color(0xFF484F58),
+                                  fontWeight: FontWeight.normal)),
+                          TextSpan(text: '${p.assists}',
+                              style: const TextStyle(color: Color(0xFF79C0FF))),
+                        ],
+                      ),
+                    ),
+                    Text(
+                      '${(p.participationRate * 100).toStringAsFixed(0)}% 参战',
+                      style: const TextStyle(
+                          color: Color(0xFF8B949E), fontSize: 10),
+                    ),
+                  ],
+                ),
+              ],
             ),
-          ),
 
-          // ── Items (6 slots) ───────────────────────────────────────────
-          SizedBox(
-            width: _kItemsW,
-            child: Padding(
-              padding: const EdgeInsets.symmetric(vertical: 8),
-              child: Wrap(
-                spacing: 3,
-                runSpacing: 3,
-                children: List.generate(6, (i) {
+            const SizedBox(height: 10),
+
+            // ── Row 2: Items + Gold ───────────────────────────────────────
+            Row(
+              children: [
+                ...List.generate(6, (i) {
                   final name     = i < p.items.length      ? p.items[i]      : '';
                   final imageUrl = i < p.itemImages.length ? p.itemImages[i] : '';
-                  return _ItemSlot(name: name, imageUrl: imageUrl);
+                  return Padding(
+                    padding: const EdgeInsets.only(right: 4),
+                    child: _ItemSlot(name: name, imageUrl: imageUrl),
+                  );
                 }),
-              ),
+                const Spacer(),
+                const Icon(Icons.monetization_on,
+                    size: 13, color: Color(0xFFFFD700)),
+                const SizedBox(width: 3),
+                Text(_fmt(p.gold),
+                    style: const TextStyle(
+                        color: Color(0xFFFFD700),
+                        fontSize: 13,
+                        fontWeight: FontWeight.bold)),
+              ],
             ),
-          ),
 
-          // ── 参战率 ────────────────────────────────────────────────────
-          _Cell(
-            width: _statCols[0].width,
-            child: Text(
-              '${(p.participationRate * 100).toStringAsFixed(0)}%',
-              style: const TextStyle(color: Colors.white, fontSize: 12),
-              textAlign: TextAlign.center,
-            ),
-          ),
+            const SizedBox(height: 10),
 
-          // ── 杀/死/助 ──────────────────────────────────────────────────
-          _Cell(
-            width: _statCols[1].width,
-            child: RichText(
-              textAlign: TextAlign.center,
-              text: TextSpan(
-                style: const TextStyle(fontSize: 13,
-                    fontWeight: FontWeight.bold),
-                children: [
-                  TextSpan(text: '${p.kills}',
-                      style: const TextStyle(color: Color(0xFF3FB950))),
-                  const TextSpan(text: '/',
-                      style: TextStyle(
-                          color: Color(0xFF484F58),
-                          fontWeight: FontWeight.normal)),
-                  TextSpan(text: '${p.deaths}',
-                      style: const TextStyle(color: Color(0xFFFF7B72))),
-                  const TextSpan(text: '/',
-                      style: TextStyle(
-                          color: Color(0xFF484F58),
-                          fontWeight: FontWeight.normal)),
-                  TextSpan(text: '${p.assists}',
-                      style: const TextStyle(color: Color(0xFF79C0FF))),
-                ],
-              ),
-            ),
-          ),
-
-          // ── 天梯积分 ──────────────────────────────────────────────────
-          _Cell(
-            width: _statCols[2].width,
-            child: Column(
-              mainAxisSize: MainAxisSize.min,
+            // ── Row 3: 6-cell stat bar ────────────────────────────────────
+            Row(
               children: [
-                Text(
-                  p.rankPoints.toStringAsFixed(0),
-                  style: const TextStyle(color: Colors.white, fontSize: 12),
+                _StatCell(
+                  label: '天梯积分',
+                  value: p.rankPoints.toStringAsFixed(0),
+                  sub:   '$rpSign${p.incRankPoints.toStringAsFixed(0)}',
+                  subColor: rpClr,
+                  color: Colors.white,
                 ),
-                Text(
-                  '$rpSign${p.incRankPoints.toStringAsFixed(0)}',
-                  style: TextStyle(
-                      color: rpColor, fontSize: 11,
-                      fontWeight: FontWeight.bold),
+                _StatCell(
+                  label: '参战率',
+                  value: '${(p.participationRate * 100).toStringAsFixed(0)}%',
+                  color: const Color(0xFFCDD9E5),
+                ),
+                _StatCell(
+                  label: '正/反补',
+                  value: '${p.lastHits}/${p.denies}',
+                  color: const Color(0xFFCDD9E5),
+                ),
+                _StatCell(
+                  label: '伤害',
+                  value: _fmt(p.heroDamage),
+                  sub:   '${dmgPct.toStringAsFixed(1)}%',
+                  subColor: const Color(0xFF8B949E),
+                  color: const Color(0xFFFF7B72),
+                ),
+                _StatCell(
+                  label: '治疗',
+                  value: _fmt(p.heroHealing),
+                  color: const Color(0xFF3FB950),
+                ),
+                _StatCell(
+                  label: '推塔',
+                  value: _fmt(p.towerDamage),
+                  color: const Color(0xFF79C0FF),
                 ),
               ],
             ),
-          ),
-
-          // ── 正补/反补 ─────────────────────────────────────────────────
-          _Cell(
-            width: _statCols[3].width,
-            child: Text(
-              '${p.lastHits}/${p.denies}',
-              style: const TextStyle(color: Colors.white, fontSize: 12),
-              textAlign: TextAlign.center,
-            ),
-          ),
-
-          // ── 经济 ──────────────────────────────────────────────────────
-          _Cell(
-            width: _statCols[4].width,
-            child: Text(
-              _fmt(p.gold),
-              style: const TextStyle(
-                  color: Color(0xFFFFD700),
-                  fontSize: 12,
-                  fontWeight: FontWeight.w600),
-              textAlign: TextAlign.center,
-            ),
-          ),
-
-          // ── 伤害 ──────────────────────────────────────────────────────
-          _Cell(
-            width: _statCols[5].width,
-            child: Column(
-              mainAxisSize: MainAxisSize.min,
-              children: [
-                Text(_fmt(p.heroDamage),
-                    style: const TextStyle(
-                        color: Color(0xFFFF7B72), fontSize: 12)),
-                Text('${dmgPct.toStringAsFixed(1)}%',
-                    style: const TextStyle(
-                        color: Color(0xFF8B949E), fontSize: 10)),
-              ],
-            ),
-          ),
-
-          // ── 治疗 ──────────────────────────────────────────────────────
-          _Cell(
-            width: _statCols[6].width,
-            child: Text(
-              _fmt(p.heroHealing),
-              style: const TextStyle(
-                  color: Color(0xFF3FB950), fontSize: 12),
-              textAlign: TextAlign.center,
-            ),
-          ),
-
-          // ── 推塔 ──────────────────────────────────────────────────────
-          _Cell(
-            width: _statCols[7].width,
-            child: Text(
-              _fmt(p.towerDamage),
-              style: const TextStyle(
-                  color: Color(0xFF79C0FF), fontSize: 12),
-              textAlign: TextAlign.center,
-            ),
-          ),
-        ],
+          ],
+        ),
       ),
     );
   }
@@ -654,19 +507,46 @@ class _PlayerRow extends StatelessWidget {
       v >= 10000 ? '${(v / 1000).toStringAsFixed(1)}k' : '$v';
 }
 
-// ── Stat cell wrapper ──────────────────────────────────────────────────────
+// ── Stat cell ──────────────────────────────────────────────────────────────
 
-class _Cell extends StatelessWidget {
-  final double width;
-  final Widget child;
-  const _Cell({required this.width, required this.child});
+class _StatCell extends StatelessWidget {
+  final String label;
+  final String value;
+  final String? sub;
+  final Color color;
+  final Color? subColor;
+
+  const _StatCell({
+    required this.label,
+    required this.value,
+    this.sub,
+    required this.color,
+    this.subColor,
+  });
 
   @override
-  Widget build(BuildContext context) => SizedBox(
-    width: width,
-    child: Padding(
-      padding: const EdgeInsets.symmetric(vertical: 10),
-      child: Center(child: child),
+  Widget build(BuildContext context) => Expanded(
+    child: Column(
+      mainAxisSize: MainAxisSize.min,
+      children: [
+        Text(value,
+            style: TextStyle(
+                color: color,
+                fontSize: 12,
+                fontWeight: FontWeight.bold),
+            textAlign: TextAlign.center),
+        if (sub != null)
+          Text(sub!,
+              style: TextStyle(
+                  color: subColor ?? const Color(0xFF8B949E),
+                  fontSize: 10),
+              textAlign: TextAlign.center),
+        const SizedBox(height: 2),
+        Text(label,
+            style: const TextStyle(
+                color: Color(0xFF8B949E), fontSize: 9),
+            textAlign: TextAlign.center),
+      ],
     ),
   );
 }
@@ -678,22 +558,20 @@ class _ItemSlot extends StatelessWidget {
   final String imageUrl;
   const _ItemSlot({required this.name, this.imageUrl = ''});
 
-  static const _w = 26.0;
-  static const _h = 26.0;
+  static const _size = 30.0;
 
   @override
   Widget build(BuildContext context) {
-    final isEmpty   = name.isEmpty;
-    final hasImage  = imageUrl.isNotEmpty;
+    final isEmpty  = name.isEmpty;
+    final hasImage = imageUrl.isNotEmpty;
+
     return Tooltip(
       message: name,
       child: Container(
-        width: _w,
-        height: _h,
+        width: _size,
+        height: _size,
         decoration: BoxDecoration(
-          color: isEmpty
-              ? const Color(0xFF1C2128)
-              : const Color(0xFF2D3139),
+          color: isEmpty ? const Color(0xFF1C2128) : const Color(0xFF2D3139),
           borderRadius: BorderRadius.circular(4),
           border: Border.all(
             color: isEmpty
@@ -708,8 +586,8 @@ class _ItemSlot extends StatelessWidget {
                     borderRadius: BorderRadius.circular(3),
                     child: Image.network(
                       imageUrl,
-                      width: _w,
-                      height: _h,
+                      width: _size,
+                      height: _size,
                       fit: BoxFit.cover,
                       errorBuilder: (_, __, ___) => _nameText(),
                     ),
@@ -720,16 +598,19 @@ class _ItemSlot extends StatelessWidget {
   }
 
   Widget _nameText() => Center(
-    child: Text(
-      name,
-      style: const TextStyle(
-          color: Color(0xFFCDD9E5),
-          fontSize: 6,
-          fontWeight: FontWeight.w500,
-          height: 1.1),
-      textAlign: TextAlign.center,
-      overflow: TextOverflow.ellipsis,
-      maxLines: 3,
+    child: Padding(
+      padding: const EdgeInsets.all(2),
+      child: Text(
+        name,
+        style: const TextStyle(
+            color: Color(0xFFCDD9E5),
+            fontSize: 6,
+            fontWeight: FontWeight.w500,
+            height: 1.1),
+        textAlign: TextAlign.center,
+        overflow: TextOverflow.ellipsis,
+        maxLines: 3,
+      ),
     ),
   );
 }
