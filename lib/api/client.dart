@@ -174,7 +174,32 @@ class ApiClient {
   Future<Map<String, dynamic>> searchPlayer(String userId) async {
     final resp = await _authedReq(
         'POST', '$_rustwarApi/api/user/userinfo', {'user_id': userId});
-    return resp['data'] as Map<String, dynamic>;
+    return resp['data'] as Map<String, dynamic>? ?? {};
+  }
+
+  /// 按昵称查询玩家信息
+  Future<Map<String, dynamic>> searchPlayerByName(String name) async {
+    final resp = await _authedReq(
+        'POST', '$_rustwarApi/api/user/userinfo', {'name': name});
+    return resp['data'] as Map<String, dynamic>? ?? {};
+  }
+
+  /// 获取指定用户的战绩列表（用于查看他人战绩）
+  Future<List<dynamic>> matchHistoryForUser(
+    String userId, {
+    int page = 1,
+    int perPage = 20,
+  }) async {
+    final url = '$_rustwarApi/api/teamup/$userId/match_history'
+        '?per_page=$perPage&page=$page&is_valid=true';
+    final resp = await _authedReq('GET', url, null);
+    if (resp['success'] != true) {
+      final msg = resp['message']?.toString()
+          ?? resp['msg']?.toString()
+          ?? '获取战绩失败';
+      throw Exception(msg);
+    }
+    return resp['data'] as List? ?? [];
   }
 
   // ── 内部工具 ──────────────────────────────────────────────────────────
