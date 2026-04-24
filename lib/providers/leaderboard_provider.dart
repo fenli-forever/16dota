@@ -24,8 +24,8 @@ class LeaderboardProvider extends ChangeNotifier {
     notifyListeners();
     try {
       final data = await api.seasons();
-      // API may return list under 'list' or 'season_list'
-      final rawList = ((data['list'] ?? data['season_list']) as List?)
+      // API returns 'season_list' key (fallback to 'list')
+      final rawList = ((data['season_list'] ?? data['list']) as List?)
               ?.cast<Map<String, dynamic>>() ?? [];
       final currentId = (data['current_activity_id'] as num?)?.toInt()
           ?? (data['activity_id'] as num?)?.toInt()
@@ -74,10 +74,10 @@ class LeaderboardProvider extends ChangeNotifier {
     try {
       Map<String, dynamic> data = {};
       Object? lastError;
-      for (final bt in ['AP', 'MD', 'RD', 'OMG']) {
+      for (final bt in ['MD', 'AP', 'TT', 'RD']) {
         try {
           data = await api.leaderboard(
-              activityId: _selected!.activityId, battleType: bt);
+              activityId: _selected!.activityId, subType: bt);
           if (data.isNotEmpty) break;
         } catch (e) {
           lastError = e;

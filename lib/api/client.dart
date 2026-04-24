@@ -147,11 +147,11 @@ class ApiClient {
   /// POST leaderboard.../api/leaderboard/super_dota/record
   Future<Map<String, dynamic>> leaderboard({
     required int activityId,
-    String battleType = 'AP',
+    String subType = 'MD',
   }) async {
     final resp = await _authedReq(
       'POST', '$_ladderApi/api/leaderboard/super_dota/record',
-      {'activity_id': activityId, 'battle_type': battleType},
+      {'activity_id': activityId, 'sub_type': subType, 'user_id': _userId},
     );
     if (resp['success'] != true) {
       final msg = resp['message']?.toString()

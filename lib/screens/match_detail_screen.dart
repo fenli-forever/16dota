@@ -1,3 +1,5 @@
+import 'dart:convert';
+import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
 import 'package:intl/intl.dart';
 import '../api/client.dart';
@@ -54,6 +56,15 @@ class _MatchDetailScreenState extends State<MatchDetailScreen> {
   Future<void> _load() async {
     try {
       final raw = await widget.api.settlement(widget.match.gameId);
+      // Debug: print first player's inventory to identify image URL fields
+      if (kDebugMode) {
+        final scores = raw['scores'] as Map<String, dynamic>?;
+        final players = (scores?['players'] as List?)?.cast<Map<String, dynamic>>();
+        if (players != null && players.isNotEmpty) {
+          final inv = players.first['inventory'];
+          debugPrint('[inventory sample] ${jsonEncode(inv)}');
+        }
+      }
       if (mounted) {
         setState(() {
           _detail = MatchDetail.fromJson(raw);
@@ -710,15 +721,15 @@ class _ItemSlot extends StatelessWidget {
 
   Widget _nameText() => Center(
     child: Text(
-      name.length > 3 ? name.substring(0, 3) : name,
+      name,
       style: const TextStyle(
           color: Color(0xFFCDD9E5),
-          fontSize: 7,
+          fontSize: 6,
           fontWeight: FontWeight.w500,
           height: 1.1),
       textAlign: TextAlign.center,
-      overflow: TextOverflow.clip,
-      maxLines: 2,
+      overflow: TextOverflow.ellipsis,
+      maxLines: 3,
     ),
   );
 }

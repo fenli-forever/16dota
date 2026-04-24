@@ -78,8 +78,8 @@ class AuthProvider extends ChangeNotifier {
                 ?.cast<Map<String, dynamic>>() ?? [];
         if (seasonList.isNotEmpty) {
           final actId = (seasonList.first['activity_id'] as num).toInt();
-          for (final bt in ['AP', 'MD', 'RD', 'OMG']) {
-            final d = await api.leaderboard(activityId: actId, battleType: bt)
+          for (final bt in ['MD', 'AP', 'TT', 'RD']) {
+            final d = await api.leaderboard(activityId: actId, subType: bt)
                 .catchError((_) => <String, dynamic>{});
             if (d.isNotEmpty && d['rank_name'] != null) {
               lastLadderData = d;
