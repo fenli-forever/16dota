@@ -59,6 +59,13 @@ jobs:
             flutter build apk --debug
           fi
 
+      - name: Rename APK
+        run: |
+          cd build/app/outputs/flutter-apk
+          for f in app-*.apk; do
+            mv "$f" "16dota-${f#app-}"
+          done
+
       - name: Upload APK artifact
         uses: actions/upload-artifact@v4
         with:
