@@ -2,7 +2,9 @@ import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 import '../providers/auth_provider.dart';
+import '../providers/leaderboard_provider.dart';
 import '../models/match.dart';
+import '../models/leaderboard.dart';
 
 Color _tierColor(String n) {
   if (n.contains('永恒') || n.contains('超凡')) return const Color(0xFFE74C3C);
@@ -13,58 +15,79 @@ Color _tierColor(String n) {
   return const Color(0xFF8B949E);
 }
 
-class ProfileScreen extends StatelessWidget {
+class ProfileScreen extends StatefulWidget {
   const ProfileScreen({super.key});
+  @override
+  State<ProfileScreen> createState() => _ProfileScreenState();
+}
+
+class _ProfileScreenState extends State<ProfileScreen> {
+  late LeaderboardProvider _ladder;
+
+  @override
+  void initState() {
+    super.initState();
+    _ladder = LeaderboardProvider(context.read<AuthProvider>().api);
+    _ladder.init();
+  }
+
+  Future<void> _refresh() async {
+    await Future.wait([
+      context.read<AuthProvider>().refreshProfile(),
+      _ladder.refresh(),
+    ]);
+  }
 
   @override
   Widget build(BuildContext context) {
     final auth    = context.watch<AuthProvider>();
     final profile = auth.profile;
 
-    return Scaffold(
-      backgroundColor: const Color(0xFF0D1117),
-      appBar: AppBar(
-        backgroundColor: const Color(0xFF161B22),
-        elevation: 0,
-        title: const Text('我的',
-            style: TextStyle(color: Colors.white, fontWeight: FontWeight.bold)),
-        actions: [
-          IconButton(
-            icon: const Icon(Icons.refresh, color: Color(0xFF8B949E)),
-            tooltip: '刷新数据',
-            onPressed: () => auth.refreshProfile(),
-          ),
-          IconButton(
-            icon: const Icon(Icons.logout, color: Color(0xFF8B949E)),
-            tooltip: '退出登录',
-            onPressed: () => _confirmLogout(context, auth),
-          ),
-        ],
-      ),
-      body: profile == null
-          ? const Center(
-              child: CircularProgressIndicator(color: Color(0xFFE8A020)))
-          : RefreshIndicator(
-              color: const Color(0xFFE8A020),
-              backgroundColor: const Color(0xFF161B22),
-              onRefresh: () => auth.refreshProfile(),
-              child: ListView(
-                padding: const EdgeInsets.all(16),
-                children: [
-                  _AvatarCard(profile: profile),
-                  const SizedBox(height: 12),
-                  _RankCard(profile: profile),
-                  const SizedBox(height: 12),
-                  _StatsCard(profile: profile),
-                  // Debug panel (only in debug builds when data looks empty)
-                  if (kDebugMode && _isDataEmpty(profile)) ...[
-                    const SizedBox(height: 12),
-                    _DebugCard(auth: auth),
-                  ],
-                  const SizedBox(height: 16),
-                ],
+    return ChangeNotifierProvider.value(
+      value: _ladder,
+      child: Scaffold(
+        backgroundColor: const Color(0xFF0D1117),
+        appBar: AppBar(
+          backgroundColor: const Color(0xFF161B22),
+          elevation: 0,
+          title: const Text('我的',
+              style: TextStyle(color: Colors.white, fontWeight: FontWeight.bold)),
+          actions: [
+            Consumer<LeaderboardProvider>(
+              builder: (_, lp, __) => IconButton(
+                icon: const Icon(Icons.refresh, color: Color(0xFF8B949E)),
+                tooltip: '刷新',
+                onPressed: lp.loading ? null : _refresh,
               ),
             ),
+            IconButton(
+              icon: const Icon(Icons.logout, color: Color(0xFF8B949E)),
+              tooltip: '退出登录',
+              onPressed: () => _confirmLogout(context, auth),
+            ),
+          ],
+        ),
+        body: profile == null
+            ? const Center(
+                child: CircularProgressIndicator(color: Color(0xFFE8A020)))
+            : RefreshIndicator(
+                color: const Color(0xFFE8A020),
+                backgroundColor: const Color(0xFF161B22),
+                onRefresh: _refresh,
+                child: ListView(
+                  padding: const EdgeInsets.fromLTRB(16, 16, 16, 32),
+                  children: [
+                    _AvatarCard(profile: profile),
+                    const SizedBox(height: 12),
+                    const _LadderSection(),
+                    if (kDebugMode && _isDataEmpty(profile)) ...[
+                      const SizedBox(height: 12),
+                      _DebugCard(auth: auth),
+                    ],
+                  ],
+                ),
+              ),
+      ),
     );
   }
 
@@ -100,7 +123,7 @@ class ProfileScreen extends StatelessWidget {
   }
 }
 
-// ── 头像 + 基本信息卡片 ────────────────────────────────────────────────────
+// ── 头像 + 基本信息 ────────────────────────────────────────────────────────
 
 class _AvatarCard extends StatelessWidget {
   final PlayerProfile profile;
@@ -116,7 +139,6 @@ class _AvatarCard extends StatelessWidget {
       ),
       child: Row(
         children: [
-          // 头像
           CircleAvatar(
             radius: 38,
             backgroundColor: const Color(0xFF30363D),
@@ -149,39 +171,140 @@ class _AvatarCard extends StatelessWidget {
                       style: const TextStyle(
                           color: Color(0xFF484F58), fontSize: 11)),
                 ],
-                const SizedBox(height: 8),
-                if (profile.rankName.isNotEmpty)
-                  _RankBadge(rankName: profile.rankName)
-                else
-                  Container(
-                    padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 3),
-                    decoration: BoxDecoration(
-                      color: const Color(0xFF30363D),
-                      borderRadius: BorderRadius.circular(4),
+              ],
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+}
+
+// ── 天梯区域（赛季选择 + 数据卡片）────────────────────────────────────────
+
+class _LadderSection extends StatelessWidget {
+  const _LadderSection();
+
+  @override
+  Widget build(BuildContext context) {
+    return Consumer<LeaderboardProvider>(
+      builder: (_, lp, __) {
+        return Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            // 区域标题 + 赛季选择
+            Row(
+              children: [
+                const Text('天梯',
+                    style: TextStyle(
+                        color: Color(0xFF8B949E),
+                        fontSize: 12,
+                        fontWeight: FontWeight.w600,
+                        letterSpacing: 1)),
+                const SizedBox(width: 12),
+                if (lp.seasons.isNotEmpty)
+                  Expanded(
+                    child: SingleChildScrollView(
+                      scrollDirection: Axis.horizontal,
+                      child: Row(
+                        children: lp.seasons.map((s) {
+                          final sel = lp.selected?.activityId == s.activityId;
+                          return GestureDetector(
+                            onTap: () => lp.selectSeason(s),
+                            child: Container(
+                              margin: const EdgeInsets.only(right: 6),
+                              padding: const EdgeInsets.symmetric(
+                                  horizontal: 10, vertical: 4),
+                              decoration: BoxDecoration(
+                                color: sel
+                                    ? const Color(0xFFE8A020).withValues(alpha: 0.2)
+                                    : Colors.transparent,
+                                borderRadius: BorderRadius.circular(12),
+                                border: Border.all(
+                                  color: sel
+                                      ? const Color(0xFFE8A020)
+                                      : const Color(0xFF30363D),
+                                ),
+                              ),
+                              child: Text(s.name,
+                                  style: TextStyle(
+                                    color: sel
+                                        ? const Color(0xFFE8A020)
+                                        : const Color(0xFF8B949E),
+                                    fontSize: 11,
+                                    fontWeight: sel
+                                        ? FontWeight.bold
+                                        : FontWeight.normal,
+                                  )),
+                            ),
+                          );
+                        }).toList(),
+                      ),
                     ),
-                    child: const Text('未定段',
-                        style: TextStyle(
-                            color: Color(0xFF8B949E),
-                            fontSize: 11)),
                   ),
               ],
             ),
-          ),
-        ],
-      ),
+            const SizedBox(height: 10),
+
+            // 数据卡片
+            if (lp.loading && lp.result == null)
+              const Center(
+                child: Padding(
+                  padding: EdgeInsets.symmetric(vertical: 32),
+                  child: CircularProgressIndicator(
+                      strokeWidth: 2, color: Color(0xFFE8A020)),
+                ),
+              )
+            else if (lp.error.isNotEmpty && lp.result == null)
+              _LadderError(error: lp.error, onRetry: lp.init)
+            else if (lp.result != null)
+              _LadderCard(result: lp.result!),
+          ],
+        );
+      },
     );
   }
 }
 
-// ── 段位信息卡片 ───────────────────────────────────────────────────────────
+class _LadderError extends StatelessWidget {
+  final String error;
+  final VoidCallback onRetry;
+  const _LadderError({required this.error, required this.onRetry});
 
-class _RankCard extends StatelessWidget {
-  final PlayerProfile profile;
-  const _RankCard({required this.profile});
+  @override
+  Widget build(BuildContext context) => Container(
+    padding: const EdgeInsets.all(20),
+    decoration: BoxDecoration(
+      color: const Color(0xFF161B22),
+      borderRadius: BorderRadius.circular(12),
+    ),
+    child: Column(
+      children: [
+        const Icon(Icons.error_outline, color: Color(0xFF8B949E), size: 36),
+        const SizedBox(height: 8),
+        Text(error,
+            textAlign: TextAlign.center,
+            style: const TextStyle(color: Color(0xFF8B949E), fontSize: 13)),
+        const SizedBox(height: 12),
+        ElevatedButton(onPressed: onRetry, child: const Text('重试')),
+      ],
+    ),
+  );
+}
+
+class _LadderCard extends StatelessWidget {
+  final LeaderboardResult result;
+  const _LadderCard({required this.result});
 
   @override
   Widget build(BuildContext context) {
-    final hasData = profile.rankPoints > 0 || profile.mmr > 0;
+    final rankColor = _tierColor(result.rankName);
+    final total = result.totalCount > 0
+        ? result.totalCount
+        : result.winCount + result.loseCount;
+    final winPct = total > 0
+        ? (result.winCount / total * 100).toStringAsFixed(1)
+        : '0.0';
 
     return Container(
       padding: const EdgeInsets.all(20),
@@ -189,189 +312,103 @@ class _RankCard extends StatelessWidget {
         color: const Color(0xFF161B22),
         borderRadius: BorderRadius.circular(12),
       ),
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          Row(
-            children: [
-              const Text('段位信息',
-                  style: TextStyle(
-                      color: Color(0xFF8B949E),
-                      fontSize: 12,
-                      fontWeight: FontWeight.w600,
-                      letterSpacing: 1)),
-              const Spacer(),
-              if (!hasData)
-                Container(
-                  padding: const EdgeInsets.symmetric(
-                      horizontal: 7, vertical: 2),
-                  decoration: BoxDecoration(
-                    color: const Color(0xFF30363D),
-                    borderRadius: BorderRadius.circular(4),
-                  ),
-                  child: const Text('暂无数据',
+      child: result.hasPersonalStats
+          ? Column(
+              children: [
+                // 段位名 + 排名
+                Row(
+                  crossAxisAlignment: CrossAxisAlignment.end,
+                  children: [
+                    Text(
+                      result.rankName.isNotEmpty ? result.rankName : '未定段',
                       style: TextStyle(
-                          color: Color(0xFF8B949E), fontSize: 10)),
-                ),
-            ],
-          ),
-          const SizedBox(height: 16),
-          Row(
-            children: [
-              Expanded(
-                child: _StatBlock(
-                  label: '天梯积分',
-                  value: hasData
-                      ? profile.rankPoints.toStringAsFixed(0)
-                      : '—',
-                  color: const Color(0xFFE8A020),
-                ),
-              ),
-              Container(
-                  width: 1, height: 40, color: const Color(0xFF30363D)),
-              Expanded(
-                child: _StatBlock(
-                  label: 'MMR',
-                  value: hasData
-                      ? profile.mmr.toStringAsFixed(0)
-                      : '—',
-                  color: const Color(0xFF58A6FF),
-                ),
-              ),
-              if (profile.rankName.isNotEmpty) ...[
-                Container(
-                    width: 1, height: 40, color: const Color(0xFF30363D)),
-                Expanded(
-                  child: Column(
-                    children: [
-                      Text(profile.rankName,
-                          style: TextStyle(
-                              color: _tierColor(profile.rankName),
-                              fontSize: 15,
-                              fontWeight: FontWeight.bold),
-                          textAlign: TextAlign.center),
-                      const SizedBox(height: 4),
-                      const Text('段位',
-                          style: TextStyle(
-                              color: Color(0xFF8B949E), fontSize: 11),
-                          textAlign: TextAlign.center),
+                          color: rankColor,
+                          fontSize: 22,
+                          fontWeight: FontWeight.bold),
+                    ),
+                    if (result.myRank > 0) ...[
+                      const SizedBox(width: 8),
+                      Padding(
+                        padding: const EdgeInsets.only(bottom: 2),
+                        child: Text('第 ${result.myRank} 名',
+                            style: const TextStyle(
+                                color: Color(0xFF8B949E), fontSize: 13)),
+                      ),
                     ],
+                    const Spacer(),
+                    Column(
+                      crossAxisAlignment: CrossAxisAlignment.end,
+                      children: [
+                        Text('${result.mmr.toStringAsFixed(0)} MMR',
+                            style: const TextStyle(
+                                color: Colors.white,
+                                fontSize: 18,
+                                fontWeight: FontWeight.bold)),
+                        Text('${result.rankPoints.toStringAsFixed(0)} 分',
+                            style: const TextStyle(
+                                color: Color(0xFF8B949E), fontSize: 12)),
+                      ],
+                    ),
+                  ],
+                ),
+                const SizedBox(height: 16),
+
+                // 胜率进度条
+                Row(
+                  children: [
+                    Text('胜率 $winPct%',
+                        style: TextStyle(
+                            color: result.winCount >= (result.loseCount)
+                                ? const Color(0xFF2EA043)
+                                : const Color(0xFF8B949E),
+                            fontSize: 13,
+                            fontWeight: FontWeight.w600)),
+                    const Spacer(),
+                    Text('共 $total 场',
+                        style: const TextStyle(
+                            color: Color(0xFF8B949E), fontSize: 12)),
+                  ],
+                ),
+                const SizedBox(height: 6),
+                ClipRRect(
+                  borderRadius: BorderRadius.circular(4),
+                  child: LinearProgressIndicator(
+                    value: total > 0
+                        ? (result.winCount / total).clamp(0.0, 1.0)
+                        : 0,
+                    minHeight: 7,
+                    backgroundColor:
+                        const Color(0xFFDA3633).withValues(alpha: 0.25),
+                    valueColor:
+                        const AlwaysStoppedAnimation(Color(0xFF2EA043)),
                   ),
+                ),
+                const SizedBox(height: 14),
+
+                // 胜/负/总
+                Row(
+                  children: [
+                    _CountBox('胜', '${result.winCount}', const Color(0xFF2EA043)),
+                    const SizedBox(width: 8),
+                    _CountBox('负', '${result.loseCount}', const Color(0xFFDA3633)),
+                    const SizedBox(width: 8),
+                    _CountBox('总', '$total', const Color(0xFF8B949E)),
+                  ],
                 ),
               ],
-            ],
-          ),
-        ],
-      ),
-    );
-  }
-}
-
-// ── 战绩统计卡片 ───────────────────────────────────────────────────────────
-
-class _StatsCard extends StatelessWidget {
-  final PlayerProfile profile;
-  const _StatsCard({required this.profile});
-
-  @override
-  Widget build(BuildContext context) {
-    final total   = profile.winCount + profile.loseCount;
-    final winRate = profile.winRate;
-    final hasData = total > 0;
-
-    return Container(
-      padding: const EdgeInsets.all(20),
-      decoration: BoxDecoration(
-        color: const Color(0xFF161B22),
-        borderRadius: BorderRadius.circular(12),
-      ),
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          Row(
-            children: [
-              const Text('战绩统计',
-                  style: TextStyle(
-                      color: Color(0xFF8B949E),
-                      fontSize: 12,
-                      fontWeight: FontWeight.w600,
-                      letterSpacing: 1)),
-              const Spacer(),
-              if (!hasData)
-                Container(
-                  padding: const EdgeInsets.symmetric(
-                      horizontal: 7, vertical: 2),
-                  decoration: BoxDecoration(
-                    color: const Color(0xFF30363D),
-                    borderRadius: BorderRadius.circular(4),
-                  ),
-                  child: const Text('暂无数据',
-                      style: TextStyle(
-                          color: Color(0xFF8B949E), fontSize: 10)),
-                ),
-            ],
-          ),
-          const SizedBox(height: 16),
-
-          // 胜率行
-          Row(
-            children: [
-              Text(
-                hasData
-                    ? '胜率 ${(winRate * 100).toStringAsFixed(1)}%'
-                    : '胜率 —',
-                style: const TextStyle(
-                    color: Colors.white,
-                    fontSize: 15,
-                    fontWeight: FontWeight.bold),
+            )
+          : const Padding(
+              padding: EdgeInsets.symmetric(vertical: 16),
+              child: Center(
+                child: Text('本赛季暂无天梯数据',
+                    style: TextStyle(color: Color(0xFF8B949E), fontSize: 14)),
               ),
-              const Spacer(),
-              Text(
-                hasData ? '共 $total 场' : '—',
-                style: const TextStyle(
-                    color: Color(0xFF8B949E), fontSize: 12),
-              ),
-            ],
-          ),
-          const SizedBox(height: 8),
-          ClipRRect(
-            borderRadius: BorderRadius.circular(4),
-            child: LinearProgressIndicator(
-              value: hasData ? winRate.clamp(0.0, 1.0) : 0,
-              minHeight: 8,
-              backgroundColor:
-                  const Color(0xFFDA3633).withValues(alpha: 0.25),
-              valueColor: const AlwaysStoppedAnimation(Color(0xFF2EA043)),
             ),
-          ),
-          const SizedBox(height: 16),
-
-          // 胜/负/总
-          Row(
-            children: [
-              _CountBox(
-                  label: '胜',
-                  value: hasData ? '${profile.winCount}' : '—',
-                  color: const Color(0xFF2EA043)),
-              const SizedBox(width: 8),
-              _CountBox(
-                  label: '负',
-                  value: hasData ? '${profile.loseCount}' : '—',
-                  color: const Color(0xFFDA3633)),
-              const SizedBox(width: 8),
-              _CountBox(
-                  label: '总',
-                  value: hasData ? '$total' : '—',
-                  color: const Color(0xFF8B949E)),
-            ],
-          ),
-        ],
-      ),
     );
   }
 }
 
-// ── Debug 卡片（仅 debug 模式 + 数据为空时显示）────────────────────────────
+// ── Debug 卡片 ─────────────────────────────────────────────────────────────
 
 class _DebugCard extends StatelessWidget {
   final AuthProvider auth;
@@ -430,70 +467,24 @@ class _DebugRow extends StatelessWidget {
         SizedBox(
           width: 60,
           child: Text(label,
-              style: const TextStyle(
-                  color: Color(0xFF8B949E), fontSize: 10)),
+              style: const TextStyle(color: Color(0xFF8B949E), fontSize: 10)),
         ),
         Expanded(
           child: Text(value,
-              style: const TextStyle(
-                  color: Color(0xFFCDD9E5), fontSize: 10)),
+              style: const TextStyle(color: Color(0xFFCDD9E5), fontSize: 10)),
         ),
       ],
     ),
   );
 }
 
-// ── 小组件 ────────────────────────────────────────────────────────────────
-
-class _RankBadge extends StatelessWidget {
-  final String rankName;
-  const _RankBadge({required this.rankName});
-
-  @override
-  Widget build(BuildContext context) {
-    final color = _tierColor(rankName);
-    return Container(
-      padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 3),
-      decoration: BoxDecoration(
-        color: color.withValues(alpha: 0.15),
-        borderRadius: BorderRadius.circular(4),
-        border: Border.all(color: color.withValues(alpha: 0.4)),
-      ),
-      child: Text(rankName,
-          style: TextStyle(
-              color: color, fontSize: 11, fontWeight: FontWeight.bold)),
-    );
-  }
-}
-
-class _StatBlock extends StatelessWidget {
-  final String label;
-  final String value;
-  final Color color;
-  const _StatBlock(
-      {required this.label, required this.value, required this.color});
-
-  @override
-  Widget build(BuildContext context) => Column(
-    children: [
-      Text(value,
-          style: TextStyle(
-              color: color, fontSize: 22, fontWeight: FontWeight.bold),
-          textAlign: TextAlign.center),
-      const SizedBox(height: 4),
-      Text(label,
-          style: const TextStyle(color: Color(0xFF8B949E), fontSize: 11),
-          textAlign: TextAlign.center),
-    ],
-  );
-}
+// ── 小组件 ─────────────────────────────────────────────────────────────────
 
 class _CountBox extends StatelessWidget {
   final String label;
   final String value;
   final Color color;
-  const _CountBox(
-      {required this.label, required this.value, required this.color});
+  const _CountBox(this.label, this.value, this.color);
 
   @override
   Widget build(BuildContext context) => Expanded(
@@ -512,8 +503,7 @@ class _CountBox extends StatelessWidget {
               textAlign: TextAlign.center),
           const SizedBox(height: 2),
           Text(label,
-              style: const TextStyle(
-                  color: Color(0xFF8B949E), fontSize: 12),
+              style: const TextStyle(color: Color(0xFF8B949E), fontSize: 12),
               textAlign: TextAlign.center),
         ],
       ),
