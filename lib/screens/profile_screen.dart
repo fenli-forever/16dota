@@ -5,6 +5,7 @@ import '../providers/auth_provider.dart';
 import '../providers/leaderboard_provider.dart';
 import '../models/match.dart';
 import '../models/leaderboard.dart';
+import 'settings_screen.dart';
 
 Color _tierColor(String n) {
   if (n.contains('永恒') || n.contains('超凡')) return const Color(0xFFE74C3C);
@@ -58,6 +59,14 @@ class _ProfileScreenState extends State<ProfileScreen> {
                 icon: const Icon(Icons.refresh, color: Color(0xFF8B949E)),
                 tooltip: '刷新',
                 onPressed: lp.loading ? null : _refresh,
+              ),
+            ),
+            IconButton(
+              icon: const Icon(Icons.settings_outlined, color: Color(0xFF8B949E)),
+              tooltip: '设置',
+              onPressed: () => Navigator.push(
+                context,
+                MaterialPageRoute(builder: (_) => const SettingsScreen()),
               ),
             ),
             IconButton(

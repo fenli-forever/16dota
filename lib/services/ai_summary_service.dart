@@ -3,6 +3,22 @@ import '../models/match.dart';
 import 'summary_db.dart';
 
 class AiSummaryService {
+  static InferenceModel? _model;
+
+  static bool get isModelLoaded => _model != null;
+
+  // 获取已缓存的模型，不存在则加载
+  static Future<InferenceModel> _getModel() async {
+    _model ??= await FlutterGemma.getActiveModel(maxTokens: 1024);
+    return _model!;
+  }
+
+  // 卸载模型，释放内存
+  static Future<void> closeModel() async {
+    await _model?.close();
+    _model = null;
+  }
+
   static String _buildPrompt(MatchDetail detail, String selfUserId) {
     final self = detail.players.firstWhere(
       (p) => p.userId == selfUserId,
@@ -56,7 +72,7 @@ class AiSummaryService {
     await SummaryDb.save(gameId, 'generating');
     InferenceModelSession? session;
     try {
-      final model = await FlutterGemma.getActiveModel(maxTokens: 1024);
+      final model = await _getModel();
       session = await model.createSession(
         temperature: 0.7,
         topK: 40,
