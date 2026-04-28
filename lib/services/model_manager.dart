@@ -42,10 +42,12 @@ class ModelManager {
   }
 
   // 模型 ID = 文件名（flutter_gemma 用文件名做 key）
-  static String get _modelId {
+  static String get installedModelId {
     final uri = Uri.parse(modelUrl);
     return uri.pathSegments.last;
   }
+
+  static String get _modelId => installedModelId;
 }
 
 enum ImportResult { success, cancelled }
