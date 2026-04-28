@@ -3,19 +3,6 @@ import '../models/match.dart';
 import 'summary_db.dart';
 
 class AiSummaryService {
-  static bool _inited = false;
-
-  static Future<void> _ensureInited() async {
-    if (_inited) return;
-    await FlutterGemmaPlugin.instance.init(
-      maxTokens: 1024,
-      temperature: 0.7,
-      randomSeed: 42,
-      topK: 40,
-    );
-    _inited = true;
-  }
-
   static String _buildPrompt(MatchDetail detail, String selfUserId) {
     final self = detail.players.firstWhere(
       (p) => p.userId == selfUserId,
@@ -36,8 +23,7 @@ class AiSummaryService {
         ? '+${self.incRankPoints.toStringAsFixed(0)}'
         : self.incRankPoints.toStringAsFixed(0);
 
-    return '<start_of_turn>user\n'
-        '你是一位 Dota 2 解说助手，帮玩家「${self.nickname}」总结一场天梯对战。'
+    return '你是一位 Dota 2 解说助手，帮玩家「${self.nickname}」总结一场天梯对战。'
         '请用200字以内的中文输出，分三点：①个人表现 ②团队优劣势 ③一条改进建议。'
         '直接输出总结，不要重复题目。\n\n'
         '比赛信息：时长 ${detail.duration}，${detail.winTeamName} 获胜\n\n'
@@ -45,9 +31,7 @@ class AiSummaryService {
         'KDA ${self.kills}/${self.deaths}/${self.assists}，'
         '英雄伤害 ${self.heroDamage}，金钱 ${self.gold}，积分 $selfPts\n'
         '出装：$selfItems\n\n'
-        '全场数据：\n$rows\n'
-        '<end_of_turn>\n'
-        '<start_of_turn>model\n';
+        '全场数据：\n$rows';
   }
 
   static Future<String> generate(
@@ -56,17 +40,25 @@ class AiSummaryService {
     String gameId,
   ) async {
     await SummaryDb.save(gameId, 'generating');
+    InferenceModelSession? session;
     try {
-      await _ensureInited();
-      final prompt = _buildPrompt(detail, selfUserId);
-      final result =
-          await FlutterGemmaPlugin.instance.getResponse(prompt: prompt);
-      final content = result?.trim() ?? '（生成内容为空）';
+      final model = await FlutterGemma.getActiveModel(maxTokens: 1024);
+      session = await model.createSession(
+        temperature: 0.7,
+        topK: 40,
+        randomSeed: 42,
+      );
+      await session.addQueryChunk(
+        Message(text: _buildPrompt(detail, selfUserId), isUser: true),
+      );
+      final content = (await session.getResponse()).trim();
       await SummaryDb.save(gameId, 'done', content: content);
       return content;
     } catch (e) {
       await SummaryDb.save(gameId, 'error');
       rethrow;
+    } finally {
+      await session?.close();
     }
   }
 

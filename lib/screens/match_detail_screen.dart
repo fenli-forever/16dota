@@ -95,7 +95,7 @@ class _MatchDetailScreenState extends State<MatchDetailScreen> {
     }
     if (_aiState != _AiState.idle && _aiState != _AiState.error) return;
 
-    final downloaded = await ModelManager.isDownloaded();
+    final downloaded = await ModelManager.isInstalled();
     if (!downloaded) {
       final choice = await _showModelSourceDialog();
       if (!mounted || choice == null) return;
@@ -149,9 +149,11 @@ class _MatchDetailScreenState extends State<MatchDetailScreen> {
   Future<void> _downloadFromNetwork() async {
     setState(() { _aiState = _AiState.downloading; _downloadProgress = 0; });
     try {
-      await for (final pct in ModelManager.downloadFromNetwork()) {
-        if (mounted) setState(() => _downloadProgress = pct / 100.0);
-      }
+      await ModelManager.downloadFromNetwork(
+        onProgress: (pct) {
+          if (mounted) setState(() => _downloadProgress = pct / 100.0);
+        },
+      );
     } catch (e) {
       if (mounted) setState(() => _aiState = _AiState.error);
       _showError('模型下载失败：$e');
@@ -166,9 +168,6 @@ class _MatchDetailScreenState extends State<MatchDetailScreen> {
       switch (result) {
         case ImportResult.cancelled:
           setState(() => _aiState = _AiState.idle);
-        case ImportResult.notFound:
-          setState(() => _aiState = _AiState.error);
-          _showError('文件不存在，请重新选择');
         case ImportResult.success:
           break; // 继续走 _generate
       }
