@@ -1,6 +1,8 @@
+import 'dart:io';
 import 'package:flutter/material.dart';
 import 'match_history_screen.dart';
 import 'friends_screen.dart';
+import 'ai_page.dart';
 import 'profile_screen.dart';
 
 class HomeScreen extends StatefulWidget {
@@ -12,17 +14,42 @@ class HomeScreen extends StatefulWidget {
 class _HomeScreenState extends State<HomeScreen> {
   int _tab = 0;
 
-  final _screens = const [
-    MatchHistoryScreen(),
-    FriendsScreen(),
-    ProfileScreen(),
+  List<Widget> get _screens => [
+    const MatchHistoryScreen(),
+    const FriendsScreen(),
+    if (Platform.isAndroid) const AiPage(),
+    const ProfileScreen(),
+  ];
+
+  List<BottomNavigationBarItem> get _items => [
+    const BottomNavigationBarItem(
+      icon: Icon(Icons.history),
+      label: '战绩',
+    ),
+    const BottomNavigationBarItem(
+      icon: Icon(Icons.people_outline),
+      label: '好友',
+    ),
+    if (Platform.isAndroid)
+      const BottomNavigationBarItem(
+        icon: Icon(Icons.auto_awesome_outlined),
+        activeIcon: Icon(Icons.auto_awesome),
+        label: 'AI',
+      ),
+    const BottomNavigationBarItem(
+      icon: Icon(Icons.person_outline),
+      activeIcon: Icon(Icons.person),
+      label: '我的',
+    ),
   ];
 
   @override
   Widget build(BuildContext context) {
+    final screens = _screens;
+    final items = _items;
     return Scaffold(
       backgroundColor: const Color(0xFF0D1117),
-      body: IndexedStack(index: _tab, children: _screens),
+      body: IndexedStack(index: _tab, children: screens),
       bottomNavigationBar: BottomNavigationBar(
         currentIndex: _tab,
         onTap: (i) => setState(() => _tab = i),
@@ -32,20 +59,7 @@ class _HomeScreenState extends State<HomeScreen> {
         type: BottomNavigationBarType.fixed,
         selectedLabelStyle: const TextStyle(fontSize: 11),
         unselectedLabelStyle: const TextStyle(fontSize: 11),
-        items: const [
-          BottomNavigationBarItem(
-            icon: Icon(Icons.history),
-            label: '战绩',
-          ),
-          BottomNavigationBarItem(
-            icon: Icon(Icons.people_outline),
-            label: '好友',
-          ),
-          BottomNavigationBarItem(
-            icon: Icon(Icons.person),
-            label: '我的',
-          ),
-        ],
+        items: items,
       ),
     );
   }
