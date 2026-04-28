@@ -1,9 +1,9 @@
-import 'dart:convert';
-import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
 import 'package:intl/intl.dart';
 import '../api/client.dart';
 import '../models/match.dart';
+import '../services/ai_summary_service.dart';
+import '../services/model_manager.dart';
 import 'user_match_history_screen.dart';
 
 // ── Screen ─────────────────────────────────────────────────────────────────
@@ -17,11 +17,21 @@ class MatchDetailScreen extends StatefulWidget {
   State<MatchDetailScreen> createState() => _MatchDetailScreenState();
 }
 
+enum _AiState { none, idle, downloading, loading, generating, done, error }
+
 class _MatchDetailScreenState extends State<MatchDetailScreen> {
   MatchDetail? _detail;
   bool _loading = true;
   String _error = '';
-  String _debugInfo = '';   // visible debug info when players is empty
+  String _debugInfo = '';
+
+  // AI summary state
+  _AiState _aiState = _AiState.none;
+  double _downloadProgress = 0;
+  String _summaryContent = '';
+
+  bool get _userInMatch =>
+      _detail?.players.any((p) => p.userId == widget.api.userId) ?? false;
 
   @override
   void initState() {
@@ -34,13 +44,12 @@ class _MatchDetailScreenState extends State<MatchDetailScreen> {
     try {
       final raw = await widget.api.settlement(widget.match.gameId);
 
-      // Collect debug info about the response structure
       final topKeys = raw.keys.toList();
       final scores  = raw['scores'];
       final scoresType = scores?.runtimeType.toString() ?? 'null';
       String dbg = '顶层键: ${topKeys.join(', ')}\nscores类型: $scoresType';
       if (scores is Map) {
-        dbg += '\nscores键: ${(scores as Map).keys.toList().join(', ')}';
+        dbg += '\nscores键: ${scores.keys.toList().join(', ')}';
         final players = scores['players'];
         dbg += '\nplayers类型: ${players?.runtimeType ?? 'null'}';
         if (players is List) dbg += '  数量: ${players.length}';
@@ -53,11 +62,155 @@ class _MatchDetailScreenState extends State<MatchDetailScreen> {
           _debugInfo = dbg;
           _loading   = false;
         });
+        _initAiState();
       }
     } catch (e) {
       debugPrint('[settlement error] $e');
       if (mounted) setState(() { _error = e.toString(); _loading = false; });
     }
+  }
+
+  Future<void> _initAiState() async {
+    if (!_userInMatch) return;
+    final cached = await AiSummaryService.getCached(widget.match.gameId);
+    if (!mounted) return;
+    if (cached == null) {
+      setState(() => _aiState = _AiState.idle);
+    } else if (cached['status'] == 'done') {
+      setState(() {
+        _summaryContent = cached['content'] as String? ?? '';
+        _aiState = _AiState.done;
+      });
+    } else {
+      setState(() => _aiState = _AiState.idle);
+    }
+  }
+
+  Future<void> _onAiTap() async {
+    if (_aiState == _AiState.done) {
+      _showSummarySheet();
+      return;
+    }
+    if (_aiState != _AiState.idle && _aiState != _AiState.error) return;
+
+    final downloaded = await ModelManager.isDownloaded();
+    if (!downloaded) {
+      final choice = await _showModelSourceDialog();
+      if (!mounted || choice == null) return;
+      if (choice == _ModelSource.network) {
+        await _downloadFromNetwork();
+      } else {
+        await _importFromLocal();
+      }
+      if (!mounted || _aiState == _AiState.error || _aiState == _AiState.idle) return;
+    }
+    await _generate();
+  }
+
+  Future<_ModelSource?> _showModelSourceDialog() {
+    return showDialog<_ModelSource>(
+      context: context,
+      builder: (ctx) => AlertDialog(
+        backgroundColor: const Color(0xFF161B22),
+        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+        title: const Row(children: [
+          Icon(Icons.auto_awesome, color: Color(0xFF58A6FF), size: 18),
+          SizedBox(width: 8),
+          Text('加载 AI 模型',
+              style: TextStyle(color: Colors.white, fontSize: 16)),
+        ]),
+        content: const Text(
+          '首次使用需要加载 Gemma 3B 模型文件（约 1.7 GB）',
+          style: TextStyle(color: Color(0xFF8B949E), fontSize: 13),
+        ),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.pop(ctx),
+            child: const Text('取消',
+                style: TextStyle(color: Color(0xFF8B949E))),
+          ),
+          _DialogButton(
+            icon: Icons.folder_open,
+            label: '本地导入',
+            onTap: () => Navigator.pop(ctx, _ModelSource.local),
+          ),
+          _DialogButton(
+            icon: Icons.cloud_download_outlined,
+            label: '网络下载',
+            onTap: () => Navigator.pop(ctx, _ModelSource.network),
+          ),
+        ],
+      ),
+    );
+  }
+
+  Future<void> _downloadFromNetwork() async {
+    setState(() { _aiState = _AiState.downloading; _downloadProgress = 0; });
+    try {
+      await for (final pct in ModelManager.downloadFromNetwork()) {
+        if (mounted) setState(() => _downloadProgress = pct / 100.0);
+      }
+    } catch (e) {
+      if (mounted) setState(() => _aiState = _AiState.error);
+      _showError('模型下载失败：$e');
+    }
+  }
+
+  Future<void> _importFromLocal() async {
+    setState(() => _aiState = _AiState.loading);
+    try {
+      final result = await ModelManager.importFromLocal();
+      if (!mounted) return;
+      switch (result) {
+        case ImportResult.cancelled:
+          setState(() => _aiState = _AiState.idle);
+        case ImportResult.notFound:
+          setState(() => _aiState = _AiState.error);
+          _showError('文件不存在，请重新选择');
+        case ImportResult.success:
+          break; // 继续走 _generate
+      }
+    } catch (e) {
+      if (mounted) setState(() => _aiState = _AiState.error);
+      _showError('导入失败：$e');
+    }
+  }
+
+  Future<void> _generate() async {
+    setState(() => _aiState = _AiState.generating);
+    try {
+      final content = await AiSummaryService.generate(
+        _detail!,
+        widget.api.userId,
+        widget.match.gameId,
+      );
+      if (mounted) {
+        setState(() { _summaryContent = content; _aiState = _AiState.done; });
+        _showSummarySheet();
+      }
+    } catch (e) {
+      if (mounted) setState(() => _aiState = _AiState.error);
+      _showError('AI 生成失败：$e');
+    }
+  }
+
+  void _showError(String msg) {
+    if (!mounted) return;
+    ScaffoldMessenger.of(context).showSnackBar(
+      SnackBar(content: Text(msg), backgroundColor: const Color(0xFFDA3633)),
+    );
+  }
+
+  void _showSummarySheet() {
+    showModalBottomSheet(
+      context: context,
+      backgroundColor: const Color(0xFF161B22),
+      shape: const RoundedRectangleBorder(
+        borderRadius: BorderRadius.vertical(top: Radius.circular(16)),
+      ),
+      isScrollControlled: true,
+      builder: (_) => _SummarySheet(content: _summaryContent),
+    );
   }
 
   @override
@@ -88,6 +241,11 @@ class _MatchDetailScreenState extends State<MatchDetailScreen> {
           ),
         ]),
         actions: [
+          if (_aiState != _AiState.none) _AiButton(
+            state: _aiState,
+            progress: _downloadProgress,
+            onTap: _onAiTap,
+          ),
           Padding(
             padding: const EdgeInsets.only(right: 16),
             child: Center(
@@ -661,7 +819,7 @@ class _ItemSlot extends StatelessWidget {
                       width: _size,
                       height: _size,
                       fit: BoxFit.cover,
-                      errorBuilder: (_, __, ___) => _nameText(),
+                      errorBuilder: (context, error, stack) => _nameText(),
                     ),
                   )
                 : _nameText(),
@@ -708,6 +866,168 @@ class _TypeBadge extends StatelessWidget {
             fontSize: 11,
             fontWeight: FontWeight.w600)),
   );
+}
+
+// ── Model source choice ────────────────────────────────────────────────────
+
+enum _ModelSource { network, local }
+
+class _DialogButton extends StatelessWidget {
+  final IconData icon;
+  final String label;
+  final VoidCallback onTap;
+  const _DialogButton({required this.icon, required this.label, required this.onTap});
+
+  @override
+  Widget build(BuildContext context) => TextButton(
+    onPressed: onTap,
+    child: Row(
+      mainAxisSize: MainAxisSize.min,
+      children: [
+        Icon(icon, size: 15, color: const Color(0xFF58A6FF)),
+        const SizedBox(width: 4),
+        Text(label, style: const TextStyle(color: Color(0xFF58A6FF))),
+      ],
+    ),
+  );
+}
+
+// ── AI button ──────────────────────────────────────────────────────────────
+
+class _AiButton extends StatelessWidget {
+  final _AiState state;
+  final double progress;
+  final VoidCallback onTap;
+
+  const _AiButton({
+    required this.state,
+    required this.progress,
+    required this.onTap,
+  });
+
+  @override
+  Widget build(BuildContext context) {
+    final (label, active, showSpinner) = switch (state) {
+      _AiState.idle       => ('AI智能总结',   true,  false),
+      _AiState.downloading => ('下载 ${(progress * 100).toStringAsFixed(0)}%', false, true),
+      _AiState.loading    => ('加载模型...',   false, true),
+      _AiState.generating => ('生成中...',     false, true),
+      _AiState.done       => ('查看AI总结',   true,  false),
+      _AiState.error      => ('总结失败 重试', true,  false),
+      _AiState.none       => ('',              false, false),
+    };
+
+    final color = state == _AiState.error
+        ? const Color(0xFFDA3633)
+        : const Color(0xFF58A6FF);
+
+    return Padding(
+      padding: const EdgeInsets.only(right: 8),
+      child: Center(
+        child: GestureDetector(
+          onTap: active ? onTap : null,
+          child: Container(
+            padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 5),
+            decoration: BoxDecoration(
+              color: color.withValues(alpha: active ? 0.15 : 0.07),
+              borderRadius: BorderRadius.circular(6),
+              border: Border.all(color: color.withValues(alpha: active ? 0.45 : 0.2)),
+            ),
+            child: Row(
+              mainAxisSize: MainAxisSize.min,
+              children: [
+                if (showSpinner) ...[
+                  SizedBox(
+                    width: 10, height: 10,
+                    child: CircularProgressIndicator(
+                      strokeWidth: 1.5,
+                      color: color,
+                      value: state == _AiState.downloading ? progress : null,
+                    ),
+                  ),
+                  const SizedBox(width: 5),
+                ] else ...[
+                  Icon(Icons.auto_awesome, size: 12, color: color),
+                  const SizedBox(width: 4),
+                ],
+                Text(label,
+                    style: TextStyle(
+                        color: color,
+                        fontSize: 12,
+                        fontWeight: FontWeight.w600)),
+              ],
+            ),
+          ),
+        ),
+      ),
+    );
+  }
+}
+
+// ── Summary bottom sheet ────────────────────────────────────────────────────
+
+class _SummarySheet extends StatelessWidget {
+  final String content;
+  const _SummarySheet({required this.content});
+
+  @override
+  Widget build(BuildContext context) {
+    return Padding(
+      padding: EdgeInsets.only(
+        left: 20, right: 20, top: 20,
+        bottom: MediaQuery.of(context).viewInsets.bottom + 32,
+      ),
+      child: Column(
+        mainAxisSize: MainAxisSize.min,
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Row(children: [
+            const Icon(Icons.auto_awesome, color: Color(0xFF58A6FF), size: 16),
+            const SizedBox(width: 8),
+            const Text('AI 智能总结',
+                style: TextStyle(
+                    color: Colors.white,
+                    fontSize: 15,
+                    fontWeight: FontWeight.bold)),
+            const Spacer(),
+            GestureDetector(
+              onTap: () => Navigator.pop(context),
+              child: const Icon(Icons.close, color: Color(0xFF8B949E), size: 20),
+            ),
+          ]),
+          const SizedBox(height: 4),
+          const Divider(color: Color(0xFF30363D)),
+          const SizedBox(height: 12),
+          Container(
+            width: double.infinity,
+            padding: const EdgeInsets.all(14),
+            decoration: BoxDecoration(
+              color: const Color(0xFF0D1117),
+              borderRadius: BorderRadius.circular(8),
+              border: Border.all(color: const Color(0xFF30363D)),
+            ),
+            child: Text(
+              content,
+              style: const TextStyle(
+                  color: Color(0xFFCDD9E5),
+                  fontSize: 14,
+                  height: 1.65),
+            ),
+          ),
+          const SizedBox(height: 12),
+          Row(
+            mainAxisAlignment: MainAxisAlignment.end,
+            children: [
+              const Icon(Icons.smartphone, size: 11, color: Color(0xFF484F58)),
+              const SizedBox(width: 4),
+              const Text('由设备本地 AI 生成',
+                  style: TextStyle(color: Color(0xFF484F58), fontSize: 11)),
+            ],
+          ),
+        ],
+      ),
+    );
+  }
 }
 
 // ── Error view ─────────────────────────────────────────────────────────────
