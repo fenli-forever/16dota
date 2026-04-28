@@ -4,7 +4,9 @@ import 'package:intl/intl.dart';
 import '../api/client.dart';
 import '../models/match.dart';
 import '../services/ai_summary_service.dart';
-import '../services/model_manager.dart';
+import '../services/inference_service.dart';
+import '../services/summary_db.dart';
+import 'ai_summary_result_page.dart';
 import 'user_match_history_screen.dart';
 
 // ── Screen ─────────────────────────────────────────────────────────────────
@@ -18,7 +20,7 @@ class MatchDetailScreen extends StatefulWidget {
   State<MatchDetailScreen> createState() => _MatchDetailScreenState();
 }
 
-enum _AiState { none, idle, downloading, loading, generating, done, error }
+enum _AiState { none, idle, generating, done, error }
 
 class _MatchDetailScreenState extends State<MatchDetailScreen> {
   MatchDetail? _detail;
@@ -28,7 +30,6 @@ class _MatchDetailScreenState extends State<MatchDetailScreen> {
 
   // AI summary state
   _AiState _aiState = _AiState.none;
-  double _downloadProgress = 0;
   String _summaryContent = '';
 
   bool get _userInMatch =>
@@ -83,101 +84,51 @@ class _MatchDetailScreenState extends State<MatchDetailScreen> {
         _summaryContent = cached['content'] as String? ?? '';
         _aiState = _AiState.done;
       });
+    } else if (cached['status'] == 'generating') {
+      if (InferenceService.instance.status == InferenceStatus.running) {
+        setState(() => _aiState = _AiState.generating);
+      } else {
+        await SummaryDb.save(widget.match.gameId, 'error');
+        if (mounted) setState(() => _aiState = _AiState.error);
+      }
     } else {
-      setState(() => _aiState = _AiState.idle);
+      setState(() => _aiState = _AiState.error);
     }
   }
 
   Future<void> _onAiTap() async {
-    if (_aiState == _AiState.done) {
-      _showSummarySheet();
-      return;
-    }
-    if (_aiState != _AiState.idle && _aiState != _AiState.error) return;
-
-    final downloaded = await ModelManager.isInstalled();
-    if (!downloaded) {
-      final choice = await _showModelSourceDialog();
-      if (!mounted || choice == null) return;
-      if (choice == _ModelSource.network) {
-        await _downloadFromNetwork();
-      } else {
-        await _importFromLocal();
-      }
-      if (!mounted || _aiState == _AiState.error || _aiState == _AiState.idle) return;
-    }
-    await _generate();
-  }
-
-  Future<_ModelSource?> _showModelSourceDialog() {
-    return showDialog<_ModelSource>(
-      context: context,
-      builder: (ctx) => AlertDialog(
-        backgroundColor: const Color(0xFF161B22),
-        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
-        title: const Row(children: [
-          Icon(Icons.auto_awesome, color: Color(0xFF58A6FF), size: 18),
-          SizedBox(width: 8),
-          Text('加载 AI 模型',
-              style: TextStyle(color: Colors.white, fontSize: 16)),
-        ]),
-        content: const Text(
-          '首次使用需要加载 Gemma 3B 模型文件（约 1.7 GB）',
-          style: TextStyle(color: Color(0xFF8B949E), fontSize: 13),
-        ),
-        actions: [
-          TextButton(
-            onPressed: () => Navigator.pop(ctx),
-            child: const Text('取消',
-                style: TextStyle(color: Color(0xFF8B949E))),
+    switch (_aiState) {
+      case _AiState.done:
+        Navigator.push(
+          context,
+          MaterialPageRoute(
+            builder: (_) => AiSummaryResultPage(
+              content: _summaryContent,
+              detail: _detail,
+              selfUserId: widget.api.userId,
+            ),
           ),
-          _DialogButton(
-            icon: Icons.folder_open,
-            label: '本地导入',
-            onTap: () => Navigator.pop(ctx, _ModelSource.local),
-          ),
-          _DialogButton(
-            icon: Icons.cloud_download_outlined,
-            label: '网络下载',
-            onTap: () => Navigator.pop(ctx, _ModelSource.network),
-          ),
-        ],
-      ),
-    );
-  }
-
-  Future<void> _downloadFromNetwork() async {
-    setState(() { _aiState = _AiState.downloading; _downloadProgress = 0; });
-    try {
-      await ModelManager.downloadFromNetwork(
-        onProgress: (pct) {
-          if (mounted) setState(() => _downloadProgress = pct / 100.0);
-        },
-      );
-    } catch (e) {
-      if (mounted) setState(() => _aiState = _AiState.error);
-      _showError('模型下载失败：$e');
-    }
-  }
-
-  Future<void> _importFromLocal() async {
-    setState(() => _aiState = _AiState.loading);
-    try {
-      final result = await ModelManager.importFromLocal();
-      if (!mounted) return;
-      switch (result) {
-        case ImportResult.cancelled:
-          setState(() => _aiState = _AiState.idle);
-        case ImportResult.success:
-          break; // 继续走 _generate
-      }
-    } catch (e) {
-      if (mounted) setState(() => _aiState = _AiState.error);
-      _showError('导入失败：$e');
+        );
+      case _AiState.generating:
+        _showToast('正在生成中，请稍后查看');
+      case _AiState.idle:
+      case _AiState.error:
+        await _generate();
+      default:
+        break;
     }
   }
 
   Future<void> _generate() async {
+    if (InferenceService.instance.status != InferenceStatus.running) {
+      _showToast('请先在 AI 页面启动推理服务');
+      return;
+    }
+    final count = await SummaryDb.countGenerating();
+    if (count >= 3) {
+      _showToast('当前已有 3 个分析任务，请稍后');
+      return;
+    }
     setState(() => _aiState = _AiState.generating);
     try {
       final content = await AiSummaryService.generate(
@@ -187,30 +138,20 @@ class _MatchDetailScreenState extends State<MatchDetailScreen> {
       );
       if (mounted) {
         setState(() { _summaryContent = content; _aiState = _AiState.done; });
-        _showSummarySheet();
       }
     } catch (e) {
       if (mounted) setState(() => _aiState = _AiState.error);
-      _showError('AI 生成失败：$e');
+      _showToast('AI 生成失败：$e');
     }
   }
 
-  void _showError(String msg) {
+  void _showToast(String msg) {
     if (!mounted) return;
     ScaffoldMessenger.of(context).showSnackBar(
-      SnackBar(content: Text(msg), backgroundColor: const Color(0xFFDA3633)),
-    );
-  }
-
-  void _showSummarySheet() {
-    showModalBottomSheet(
-      context: context,
-      backgroundColor: const Color(0xFF161B22),
-      shape: const RoundedRectangleBorder(
-        borderRadius: BorderRadius.vertical(top: Radius.circular(16)),
-      ),
-      isScrollControlled: true,
-      builder: (_) => _SummarySheet(content: _summaryContent),
+      SnackBar(
+          content: Text(msg),
+          backgroundColor: const Color(0xFF161B22),
+          behavior: SnackBarBehavior.floating),
     );
   }
 
@@ -247,7 +188,6 @@ class _MatchDetailScreenState extends State<MatchDetailScreen> {
         actions: [
           if (_aiState != _AiState.none) _AiButton(
             state: _aiState,
-            progress: _downloadProgress,
             onTap: _onAiTap,
           ),
           Padding(
@@ -872,52 +812,21 @@ class _TypeBadge extends StatelessWidget {
   );
 }
 
-// ── Model source choice ────────────────────────────────────────────────────
-
-enum _ModelSource { network, local }
-
-class _DialogButton extends StatelessWidget {
-  final IconData icon;
-  final String label;
-  final VoidCallback onTap;
-  const _DialogButton({required this.icon, required this.label, required this.onTap});
-
-  @override
-  Widget build(BuildContext context) => TextButton(
-    onPressed: onTap,
-    child: Row(
-      mainAxisSize: MainAxisSize.min,
-      children: [
-        Icon(icon, size: 15, color: const Color(0xFF58A6FF)),
-        const SizedBox(width: 4),
-        Text(label, style: const TextStyle(color: Color(0xFF58A6FF))),
-      ],
-    ),
-  );
-}
-
 // ── AI button ──────────────────────────────────────────────────────────────
 
 class _AiButton extends StatelessWidget {
   final _AiState state;
-  final double progress;
   final VoidCallback onTap;
 
-  const _AiButton({
-    required this.state,
-    required this.progress,
-    required this.onTap,
-  });
+  const _AiButton({required this.state, required this.onTap});
 
   @override
   Widget build(BuildContext context) {
     final (label, active, showSpinner) = switch (state) {
       _AiState.idle       => ('AI智能总结',   true,  false),
-      _AiState.downloading => ('下载 ${(progress * 100).toStringAsFixed(0)}%', false, true),
-      _AiState.loading    => ('加载模型...',   false, true),
-      _AiState.generating => ('生成中...',     false, true),
+      _AiState.generating => ('生成中…',      false, true),
       _AiState.done       => ('查看AI总结',   true,  false),
-      _AiState.error      => ('总结失败 重试', true,  false),
+      _AiState.error      => ('重试分析',      true,  false),
       _AiState.none       => ('',              false, false),
     };
 
@@ -935,19 +844,18 @@ class _AiButton extends StatelessWidget {
             decoration: BoxDecoration(
               color: color.withValues(alpha: active ? 0.15 : 0.07),
               borderRadius: BorderRadius.circular(6),
-              border: Border.all(color: color.withValues(alpha: active ? 0.45 : 0.2)),
+              border: Border.all(
+                  color: color.withValues(alpha: active ? 0.45 : 0.2)),
             ),
             child: Row(
               mainAxisSize: MainAxisSize.min,
               children: [
                 if (showSpinner) ...[
                   SizedBox(
-                    width: 10, height: 10,
+                    width: 10,
+                    height: 10,
                     child: CircularProgressIndicator(
-                      strokeWidth: 1.5,
-                      color: color,
-                      value: state == _AiState.downloading ? progress : null,
-                    ),
+                        strokeWidth: 1.5, color: color),
                   ),
                   const SizedBox(width: 5),
                 ] else ...[
@@ -963,94 +871,6 @@ class _AiButton extends StatelessWidget {
             ),
           ),
         ),
-      ),
-    );
-  }
-}
-
-// ── Summary bottom sheet ────────────────────────────────────────────────────
-
-class _SummarySheet extends StatelessWidget {
-  final String content;
-  const _SummarySheet({required this.content});
-
-  @override
-  Widget build(BuildContext context) {
-    final bottom = MediaQuery.of(context).viewInsets.bottom
-        + MediaQuery.of(context).padding.bottom;
-    return DraggableScrollableSheet(
-      initialChildSize: 0.55,
-      minChildSize: 0.35,
-      maxChildSize: 0.92,
-      expand: false,
-      builder: (ctx, scrollCtrl) => Column(
-        children: [
-          // 拖动把手
-          Container(
-            margin: const EdgeInsets.only(top: 10, bottom: 6),
-            width: 36,
-            height: 4,
-            decoration: BoxDecoration(
-              color: const Color(0xFF484F58),
-              borderRadius: BorderRadius.circular(2),
-            ),
-          ),
-          // 标题栏（固定不滚动）
-          Padding(
-            padding: const EdgeInsets.symmetric(horizontal: 20),
-            child: Row(children: [
-              const Icon(Icons.auto_awesome, color: Color(0xFF58A6FF), size: 16),
-              const SizedBox(width: 8),
-              const Text('AI 智能总结',
-                  style: TextStyle(
-                      color: Colors.white,
-                      fontSize: 15,
-                      fontWeight: FontWeight.bold)),
-              const Spacer(),
-              GestureDetector(
-                onTap: () => Navigator.pop(ctx),
-                child: const Icon(Icons.close, color: Color(0xFF8B949E), size: 20),
-              ),
-            ]),
-          ),
-          const SizedBox(height: 6),
-          const Divider(color: Color(0xFF30363D), height: 1),
-          // 可滚动内容
-          Expanded(
-            child: ListView(
-              controller: scrollCtrl,
-              padding: EdgeInsets.fromLTRB(20, 16, 20, bottom + 24),
-              children: [
-                Container(
-                  width: double.infinity,
-                  padding: const EdgeInsets.all(16),
-                  decoration: BoxDecoration(
-                    color: const Color(0xFF0D1117),
-                    borderRadius: BorderRadius.circular(8),
-                    border: Border.all(color: const Color(0xFF30363D)),
-                  ),
-                  child: Text(
-                    content,
-                    style: const TextStyle(
-                        color: Color(0xFFCDD9E5),
-                        fontSize: 14,
-                        height: 1.75),
-                  ),
-                ),
-                const SizedBox(height: 16),
-                Row(
-                  mainAxisAlignment: MainAxisAlignment.end,
-                  children: [
-                    const Icon(Icons.smartphone, size: 11, color: Color(0xFF484F58)),
-                    const SizedBox(width: 4),
-                    const Text('由设备本地 AI 生成',
-                        style: TextStyle(color: Color(0xFF484F58), fontSize: 11)),
-                  ],
-                ),
-              ],
-            ),
-          ),
-        ],
       ),
     );
   }

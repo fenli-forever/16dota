@@ -46,4 +46,19 @@ class SummaryDb {
       conflictAlgorithm: ConflictAlgorithm.replace,
     );
   }
+
+  static Future<int> countGenerating() async {
+    final result = await (await _instance).rawQuery(
+      "SELECT COUNT(*) as cnt FROM summaries WHERE status = 'generating'",
+    );
+    return Sqflite.firstIntValue(result) ?? 0;
+  }
+
+  static Future<void> failAllGenerating() async {
+    await (await _instance).update(
+      'summaries',
+      {'status': 'error', 'content': 'inference_stopped'},
+      where: "status = 'generating'",
+    );
+  }
 }
