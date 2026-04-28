@@ -24,7 +24,9 @@ class LeaderboardProvider extends ChangeNotifier {
     notifyListeners();
     try {
       final data = await api.seasons();
-      final rawList = (data['list'] as List?)?.cast<Map<String, dynamic>>() ?? [];
+      // API returns 'season_list' key (fallback to 'list')
+      final rawList = ((data['season_list'] ?? data['list']) as List?)
+              ?.cast<Map<String, dynamic>>() ?? [];
       final currentId = (data['current_activity_id'] as num?)?.toInt()
           ?? (data['activity_id'] as num?)?.toInt()
           ?? (rawList.isNotEmpty ? (rawList.first['activity_id'] as num?)?.toInt() ?? 0 : 0);
@@ -46,6 +48,7 @@ class LeaderboardProvider extends ChangeNotifier {
       if (_selected!.activityId > 0) {
         await _fetchLeaderboard();
       } else {
+        _error = '未找到赛季数据';
         _loading = false;
         notifyListeners();
       }
@@ -69,7 +72,18 @@ class LeaderboardProvider extends ChangeNotifier {
     _error = '';
     notifyListeners();
     try {
-      final data = await api.leaderboard(activityId: _selected!.activityId);
+      Map<String, dynamic> data = {};
+      Object? lastError;
+      for (final bt in ['MD', 'AP', 'TT', 'RD']) {
+        try {
+          data = await api.leaderboard(
+              activityId: _selected!.activityId, subType: bt);
+          if (data.isNotEmpty) break;
+        } catch (e) {
+          lastError = e;
+        }
+      }
+      if (data.isEmpty && lastError != null) throw lastError;
       _result = LeaderboardResult.fromJson(data);
     } catch (e) {
       _error = e.toString();

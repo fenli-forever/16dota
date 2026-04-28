@@ -138,7 +138,8 @@ class PlayerScore {
   final double participationRate;
   final bool isMostKills;
   final double mvpScore;
-  final List<String> items;       // inventory names
+  final List<String> items;       // inventory names (for tooltip)
+  final List<String> itemImages;  // inventory image URLs
   final List<RuneRecord> runes;
 
   const PlayerScore({
@@ -167,6 +168,7 @@ class PlayerScore {
     required this.isMostKills,
     required this.mvpScore,
     required this.items,
+    required this.itemImages,
     required this.runes,
   });
 
@@ -209,6 +211,13 @@ class PlayerScore {
       isMostKills:      j['is_most_kills'] == true || mvp['is_most_kills'] == true,
       mvpScore:         (mvp['score'] as num?)?.toDouble() ?? 0,
       items:            inventory.map((e) => e['name']?.toString() ?? '').toList(),
+      itemImages:       inventory.map((e) =>
+          e['image_url']?.toString()
+          ?? e['icon']?.toString()
+          ?? e['img_url']?.toString()
+          ?? e['img']?.toString()
+          ?? e['pic']?.toString()
+          ?? '').toList(),
       runes:            runeList.map(RuneRecord.fromJson).toList(),
     );
   }
@@ -254,8 +263,17 @@ class PlayerProfile {
     final pi = j['player_info'] as Map<String, dynamic>? ?? j;
     return PlayerProfile(
       playerId:   (pi['id'] as num?)?.toInt() ?? 0,
-      userId:     pi['user_id']?.toString() ?? '',
-      nickname:   pi['nickname']?.toString() ?? pi['nick']?.toString() ?? '',
+      // extid = mall4j userId, used for match history URL
+      // check both inside player_info and at top level of data
+      userId:     pi['extid']?.toString()
+                  ?? j['extid']?.toString()
+                  ?? j['user_id']?.toString()
+                  ?? pi['user_id']?.toString()
+                  ?? pi['userId']?.toString() ?? '',
+      nickname:   pi['name']?.toString()
+                  ?? pi['nickname']?.toString()
+                  ?? pi['nick_name']?.toString()
+                  ?? pi['nick']?.toString() ?? '',
       avatar:     pi['avatar']?.toString() ?? '',
       rankName:   pi['rank_name']?.toString() ?? '',
       rankPoints: (pi['rank_points'] as num?)?.toDouble() ?? 0,

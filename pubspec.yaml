@@ -1,7 +1,7 @@
 name: dota16
 description: "16dota 战绩查询 & 好友列表"
 publish_to: 'none'
-version: 1.0.0+1
+version: 0.1.0+100
 
 environment:
   sdk: ^3.11.4
@@ -28,6 +28,17 @@ dependencies:
   # 工具
   intl: ^0.20.2
   crypto: ^3.0.6
+
+  # 本地 AI 推理
+  flutter_gemma: ^0.3.0
+
+  # 本地 DB（缓存 AI 总结）
+  sqflite: ^2.4.2
+  path_provider: ^2.1.5
+  path: ^1.9.1
+
+  # 文件选择（模型本地导入）
+  file_picker: ^8.1.7
 
 dev_dependencies:
   flutter_test:

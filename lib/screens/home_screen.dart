@@ -1,6 +1,5 @@
 import 'package:flutter/material.dart';
 import 'match_history_screen.dart';
-import 'leaderboard_screen.dart';
 import 'friends_screen.dart';
 import 'profile_screen.dart';
 
@@ -15,7 +14,6 @@ class _HomeScreenState extends State<HomeScreen> {
 
   final _screens = const [
     MatchHistoryScreen(),
-    LeaderboardScreen(),
     FriendsScreen(),
     ProfileScreen(),
   ];
@@ -40,12 +38,8 @@ class _HomeScreenState extends State<HomeScreen> {
             label: '战绩',
           ),
           BottomNavigationBarItem(
-            icon: Icon(Icons.leaderboard),
-            label: '天梯',
-          ),
-          BottomNavigationBarItem(
-            icon: Icon(Icons.search),
-            label: '搜索',
+            icon: Icon(Icons.people_outline),
+            label: '好友',
           ),
           BottomNavigationBarItem(
             icon: Icon(Icons.person),

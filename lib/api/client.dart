@@ -118,6 +118,12 @@ class ApiClient {
     final url = '$_rustwarApi/api/teamup/$_userId/match_history'
         '?per_page=$perPage&page=$page&is_valid=true';
     final resp = await _authedReq('GET', url, null);
+    if (resp['success'] != true) {
+      final msg = resp['message']?.toString()
+          ?? resp['msg']?.toString()
+          ?? '获取战绩失败';
+      throw Exception(msg);
+    }
     return resp['data'] as List? ?? [];
   }
 
@@ -125,8 +131,16 @@ class ApiClient {
   Future<Map<String, dynamic>> settlement(String gameId) async {
     final resp = await _authedReq(
       'POST', '$_teamupApi/api/teamup/game_info/settlement',
-      {'game_id': gameId},
+      {'game_id': int.tryParse(gameId) ?? gameId},
     );
+    final ok = resp['success'] == true || resp['success'] == 1
+        || resp['success']?.toString() == 'true';
+    if (!ok) {
+      final msg = resp['message']?.toString()
+          ?? resp['msg']?.toString()
+          ?? '获取详情失败 (success=${resp['success']})';
+      throw Exception(msg);
+    }
     return resp['data'] as Map<String, dynamic>? ?? {};
   }
 
@@ -135,12 +149,18 @@ class ApiClient {
   /// POST leaderboard.../api/leaderboard/super_dota/record
   Future<Map<String, dynamic>> leaderboard({
     required int activityId,
-    String battleType = 'AP',
+    String subType = 'MD',
   }) async {
     final resp = await _authedReq(
       'POST', '$_ladderApi/api/leaderboard/super_dota/record',
-      {'activity_id': activityId, 'battle_type': battleType},
+      {'activity_id': activityId, 'sub_type': subType, 'user_id': _userId},
     );
+    if (resp['success'] != true) {
+      final msg = resp['message']?.toString()
+          ?? resp['msg']?.toString()
+          ?? '获取天梯数据失败';
+      throw Exception(msg);
+    }
     return resp['data'] as Map<String, dynamic>? ?? {};
   }
 
@@ -156,7 +176,36 @@ class ApiClient {
   Future<Map<String, dynamic>> searchPlayer(String userId) async {
     final resp = await _authedReq(
         'POST', '$_rustwarApi/api/user/userinfo', {'user_id': userId});
-    return resp['data'] as Map<String, dynamic>;
+    return resp['data'] as Map<String, dynamic>? ?? {};
+  }
+
+  /// 按昵称查询玩家信息
+  Future<Map<String, dynamic>> searchPlayerByName(String name) async {
+    final resp = await _authedReq(
+        'POST', '$_rustwarApi/api/user/userinfo', {'name': name});
+    return resp['data'] as Map<String, dynamic>? ?? {};
+  }
+
+  /// 获取指定用户的战绩列表（用于查看他人战绩）
+  Future<List<dynamic>> matchHistoryForUser(
+    String userId, {
+    int page = 1,
+    int perPage = 20,
+    bool isValid = true,
+  }) async {
+    var url = '$_rustwarApi/api/teamup/$userId/match_history'
+        '?per_page=$perPage&page=$page';
+    if (isValid) url += '&is_valid=true';
+    final resp = await _authedReq('GET', url, null);
+    final ok = resp['success'] == true || resp['success'] == 1
+        || resp['success']?.toString() == 'true';
+    if (!ok) {
+      final msg = resp['message']?.toString()
+          ?? resp['msg']?.toString()
+          ?? '获取战绩失败 (success=${resp['success']})';
+      throw Exception(msg);
+    }
+    return resp['data'] as List? ?? [];
   }
 
   // ── 内部工具 ──────────────────────────────────────────────────────────
