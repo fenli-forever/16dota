@@ -1,3 +1,4 @@
+import 'dart:io';
 import 'package:flutter/material.dart';
 import 'package:intl/intl.dart';
 import '../api/client.dart';
@@ -71,6 +72,7 @@ class _MatchDetailScreenState extends State<MatchDetailScreen> {
   }
 
   Future<void> _initAiState() async {
+    if (!Platform.isAndroid) return;
     if (!_userInMatch) return;
     final cached = await AiSummaryService.getCached(widget.match.gameId);
     if (!mounted) return;
