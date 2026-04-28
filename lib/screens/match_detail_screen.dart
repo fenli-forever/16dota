@@ -236,10 +236,13 @@ class _MatchDetailScreenState extends State<MatchDetailScreen> {
           _TypeBadge('天梯排位'),
           const SizedBox(width: 6),
           _TypeBadge(m.matchType),
-          const SizedBox(width: 14),
-          Text(
-            DateFormat('yyyy/MM/dd HH:mm').format(m.startTime),
-            style: const TextStyle(color: Color(0xFF8B949E), fontSize: 13),
+          const SizedBox(width: 10),
+          Expanded(
+            child: Text(
+              DateFormat('MM/dd HH:mm').format(m.startTime),
+              style: const TextStyle(color: Color(0xFF8B949E), fontSize: 12),
+              overflow: TextOverflow.ellipsis,
+            ),
           ),
         ]),
         actions: [
