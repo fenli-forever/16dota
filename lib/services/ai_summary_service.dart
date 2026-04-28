@@ -22,14 +22,28 @@ class AiSummaryService {
     final selfPts = self.incRankPoints >= 0
         ? '+${self.incRankPoints.toStringAsFixed(0)}'
         : self.incRankPoints.toStringAsFixed(0);
+    final selfDmgPct = (() {
+      final total = detail.players.fold(0, (s, p) => s + p.heroDamage);
+      return total > 0
+          ? '${(self.heroDamage / total * 100).toStringAsFixed(1)}%'
+          : '0%';
+    })();
+    final winTeam = detail.winTeamName;
+    final isWin = self.teamName == winTeam;
 
-    return '你是一位 Dota 2 解说助手，帮玩家「${self.nickname}」总结一场天梯对战。'
-        '请用200字以内的中文输出，分三点：①个人表现 ②团队优劣势 ③一条改进建议。'
-        '直接输出总结，不要重复题目。\n\n'
-        '比赛信息：时长 ${detail.duration}，${detail.winTeamName} 获胜\n\n'
-        '${self.nickname} 的数据（${self.heroName}，${self.teamName}）：\n'
+    return '你是一位「中路大乱斗」游戏解说助手。'
+        '中路大乱斗规则：出门直接3级，只有中路，死亡不掉钱，复活快，双方不断团战直到分出胜负。'
+        '核心指标是击杀/死亡/助攻、英雄伤害占比、参战率，补刀和经济参考意义不大。\n\n'
+        '请帮玩家「${self.nickname}」总结这场对战，200字以内，分三点输出：'
+        '①本局表现亮点或不足 ②队伍整体节奏 ③一条针对性改进建议。'
+        '直接输出总结内容，不要加标题前缀。\n\n'
+        '比赛结果：${detail.duration}，$winTeam 获胜，'
+        '「${self.nickname}」所在队伍${isWin ? "胜利" : "失败"}\n\n'
+        '「${self.nickname}」的数据（英雄：${self.heroName}，队伍：${self.teamName}）：\n'
         'KDA ${self.kills}/${self.deaths}/${self.assists}，'
-        '英雄伤害 ${self.heroDamage}，金钱 ${self.gold}，积分 $selfPts\n'
+        '参战率 ${(self.participationRate * 100).toStringAsFixed(0)}%，'
+        '英雄伤害 ${self.heroDamage}（占全场 $selfDmgPct），'
+        '积分变化 $selfPts\n'
         '出装：$selfItems\n\n'
         '全场数据：\n$rows';
   }
