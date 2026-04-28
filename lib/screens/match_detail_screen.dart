@@ -977,57 +977,79 @@ class _SummarySheet extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    return Padding(
-      padding: EdgeInsets.only(
-        left: 20, right: 20, top: 20,
-        bottom: MediaQuery.of(context).viewInsets.bottom + 32,
-      ),
-      child: Column(
-        mainAxisSize: MainAxisSize.min,
-        crossAxisAlignment: CrossAxisAlignment.start,
+    final bottom = MediaQuery.of(context).viewInsets.bottom
+        + MediaQuery.of(context).padding.bottom;
+    return DraggableScrollableSheet(
+      initialChildSize: 0.55,
+      minChildSize: 0.35,
+      maxChildSize: 0.92,
+      expand: false,
+      builder: (ctx, scrollCtrl) => Column(
         children: [
-          Row(children: [
-            const Icon(Icons.auto_awesome, color: Color(0xFF58A6FF), size: 16),
-            const SizedBox(width: 8),
-            const Text('AI 智能总结',
-                style: TextStyle(
-                    color: Colors.white,
-                    fontSize: 15,
-                    fontWeight: FontWeight.bold)),
-            const Spacer(),
-            GestureDetector(
-              onTap: () => Navigator.pop(context),
-              child: const Icon(Icons.close, color: Color(0xFF8B949E), size: 20),
-            ),
-          ]),
-          const SizedBox(height: 4),
-          const Divider(color: Color(0xFF30363D)),
-          const SizedBox(height: 12),
+          // 拖动把手
           Container(
-            width: double.infinity,
-            padding: const EdgeInsets.all(14),
+            margin: const EdgeInsets.only(top: 10, bottom: 6),
+            width: 36,
+            height: 4,
             decoration: BoxDecoration(
-              color: const Color(0xFF0D1117),
-              borderRadius: BorderRadius.circular(8),
-              border: Border.all(color: const Color(0xFF30363D)),
-            ),
-            child: Text(
-              content,
-              style: const TextStyle(
-                  color: Color(0xFFCDD9E5),
-                  fontSize: 14,
-                  height: 1.65),
+              color: const Color(0xFF484F58),
+              borderRadius: BorderRadius.circular(2),
             ),
           ),
-          const SizedBox(height: 12),
-          Row(
-            mainAxisAlignment: MainAxisAlignment.end,
-            children: [
-              const Icon(Icons.smartphone, size: 11, color: Color(0xFF484F58)),
-              const SizedBox(width: 4),
-              const Text('由设备本地 AI 生成',
-                  style: TextStyle(color: Color(0xFF484F58), fontSize: 11)),
-            ],
+          // 标题栏（固定不滚动）
+          Padding(
+            padding: const EdgeInsets.symmetric(horizontal: 20),
+            child: Row(children: [
+              const Icon(Icons.auto_awesome, color: Color(0xFF58A6FF), size: 16),
+              const SizedBox(width: 8),
+              const Text('AI 智能总结',
+                  style: TextStyle(
+                      color: Colors.white,
+                      fontSize: 15,
+                      fontWeight: FontWeight.bold)),
+              const Spacer(),
+              GestureDetector(
+                onTap: () => Navigator.pop(ctx),
+                child: const Icon(Icons.close, color: Color(0xFF8B949E), size: 20),
+              ),
+            ]),
+          ),
+          const SizedBox(height: 6),
+          const Divider(color: Color(0xFF30363D), height: 1),
+          // 可滚动内容
+          Expanded(
+            child: ListView(
+              controller: scrollCtrl,
+              padding: EdgeInsets.fromLTRB(20, 16, 20, bottom + 24),
+              children: [
+                Container(
+                  width: double.infinity,
+                  padding: const EdgeInsets.all(16),
+                  decoration: BoxDecoration(
+                    color: const Color(0xFF0D1117),
+                    borderRadius: BorderRadius.circular(8),
+                    border: Border.all(color: const Color(0xFF30363D)),
+                  ),
+                  child: Text(
+                    content,
+                    style: const TextStyle(
+                        color: Color(0xFFCDD9E5),
+                        fontSize: 14,
+                        height: 1.75),
+                  ),
+                ),
+                const SizedBox(height: 16),
+                Row(
+                  mainAxisAlignment: MainAxisAlignment.end,
+                  children: [
+                    const Icon(Icons.smartphone, size: 11, color: Color(0xFF484F58)),
+                    const SizedBox(width: 4),
+                    const Text('由设备本地 AI 生成',
+                        style: TextStyle(color: Color(0xFF484F58), fontSize: 11)),
+                  ],
+                ),
+              ],
+            ),
           ),
         ],
       ),
