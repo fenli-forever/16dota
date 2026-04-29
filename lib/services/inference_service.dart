@@ -44,7 +44,10 @@ class InferenceService extends ChangeNotifier {
         ).fromFile(savedPath).install();
       }
 
-      _model = await FlutterGemma.getActiveModel(maxTokens: 1024);
+      _model = await FlutterGemma.getActiveModel(
+        maxTokens: 2048,
+        preferredBackend: PreferredBackend.cpu,
+      );
       _status = InferenceStatus.running;
     } catch (e) {
       _model = null;
