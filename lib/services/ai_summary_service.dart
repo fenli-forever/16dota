@@ -10,43 +10,33 @@ class AiSummaryService {
       orElse: () => detail.players.first,
     );
 
-    final rows = detail.players.map((p) {
-      final pts = p.incRankPoints >= 0
-          ? '+${p.incRankPoints.toStringAsFixed(0)}'
-          : p.incRankPoints.toStringAsFixed(0);
-      return '  ${p.nickname}(${p.heroName},${p.teamName}): '
-          '${p.kills}/${p.deaths}/${p.assists} '
-          '伤害${p.heroDamage} 金钱${p.gold} 积分$pts';
-    }).join('\n');
-
-    final selfItems = self.items.where((i) => i.isNotEmpty).join('、');
+    final totalDmg = detail.players.fold(0, (s, p) => s + p.heroDamage);
+    final selfDmgPct = totalDmg > 0
+        ? '${(self.heroDamage / totalDmg * 100).toStringAsFixed(1)}%'
+        : '0%';
     final selfPts = self.incRankPoints >= 0
         ? '+${self.incRankPoints.toStringAsFixed(0)}'
         : self.incRankPoints.toStringAsFixed(0);
-    final selfDmgPct = (() {
-      final total = detail.players.fold(0, (s, p) => s + p.heroDamage);
-      return total > 0
-          ? '${(self.heroDamage / total * 100).toStringAsFixed(1)}%'
-          : '0%';
-    })();
     final winTeam = detail.winTeamName;
     final isWin = self.teamName == winTeam;
 
-    return '你是一位「中路大乱斗」游戏解说助手。'
-        '中路大乱斗规则：出门直接3级，只有中路，死亡不掉钱，复活快，双方不断团战直到分出胜负。'
-        '核心指标是击杀/死亡/助攻、英雄伤害占比、参战率，补刀和经济参考意义不大。\n\n'
-        '请帮玩家「${self.nickname}」总结这场对战，200字以内，分三点输出：'
-        '①本局表现亮点或不足 ②队伍整体节奏 ③一条针对性改进建议。'
-        '直接输出总结内容，不要加标题前缀。\n\n'
-        '比赛结果：${detail.duration}，$winTeam 获胜，'
-        '「${self.nickname}」所在队伍${isWin ? "胜利" : "失败"}\n\n'
-        '「${self.nickname}」的数据（英雄：${self.heroName}，队伍：${self.teamName}）：\n'
-        'KDA ${self.kills}/${self.deaths}/${self.assists}，'
-        '参战率 ${(self.participationRate * 100).toStringAsFixed(0)}%，'
-        '英雄伤害 ${self.heroDamage}（占全场 $selfDmgPct），'
-        '积分变化 $selfPts\n'
-        '出装：$selfItems\n\n'
-        '全场数据：\n$rows';
+    // 只取关键统计，每名玩家一行简短格式，控制 token 数量
+    final rows = detail.players.map((p) {
+      final tag = p.userId == selfUserId ? '*' : ' ';
+      return '$tag${p.nickname}(${p.heroName}): '
+          '${p.kills}/${p.deaths}/${p.assists} 伤${p.heroDamage}';
+    }).join('\n');
+
+    return '中路大乱斗解说助手。规则：3级出门，只有中路，死不掉钱，复活快。'
+        '核心看KDA和伤害占比，补刀无意义。\n'
+        '结果：$winTeam胜，时长${detail.duration}，'
+        '「${self.nickname}」${isWin ? "胜" : "败"}\n'
+        '我方数据：${self.heroName} '
+        '${self.kills}/${self.deaths}/${self.assists} '
+        '伤害$selfDmgPct 参战${(self.participationRate * 100).toStringAsFixed(0)}% '
+        '积分$selfPts\n'
+        '全场：\n$rows\n'
+        '请100字内分三点总结：①亮点或不足 ②队伍节奏 ③改进建议。直接输出，不加标题。';
   }
 
   static Future<String> generate(
