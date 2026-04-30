@@ -4,6 +4,7 @@ import 'package:intl/intl.dart';
 import '../api/client.dart';
 import '../models/match.dart';
 import '../services/ai_summary_service.dart';
+import '../services/external_ai_service.dart';
 import '../services/inference_service.dart';
 import '../services/summary_db.dart';
 import 'ai_summary_result_page.dart';
@@ -31,6 +32,8 @@ class _MatchDetailScreenState extends State<MatchDetailScreen> {
   // AI summary state
   _AiState _aiState = _AiState.none;
   String _summaryContent = '';
+  bool _isExternalSummary = false;
+  ExternalAiConfig _extConfig = ExternalAiConfig();
 
   bool get _userInMatch =>
       _detail?.players.any((p) => p.userId == widget.api.userId) ?? false;
@@ -73,7 +76,9 @@ class _MatchDetailScreenState extends State<MatchDetailScreen> {
   }
 
   Future<void> _initAiState() async {
-    if (!Platform.isAndroid) return;
+    _extConfig = await ExternalAiConfig.load();
+    // Show AI button if external model is configured OR on Android with local model
+    if (!_extConfig.isConfigured && !Platform.isAndroid) return;
     if (!_userInMatch) return;
     final cached = await AiSummaryService.getCached(widget.match.gameId);
     if (!mounted) return;
@@ -106,6 +111,7 @@ class _MatchDetailScreenState extends State<MatchDetailScreen> {
               content: _summaryContent,
               detail: _detail,
               selfUserId: widget.api.userId,
+              isExternal: _isExternalSummary,
             ),
           ),
         );
@@ -120,10 +126,15 @@ class _MatchDetailScreenState extends State<MatchDetailScreen> {
   }
 
   Future<void> _generate() async {
-    if (InferenceService.instance.status != InferenceStatus.running) {
-      _showToast('请先在 AI 页面启动推理服务');
+    final localRunning =
+        InferenceService.instance.status == InferenceStatus.running;
+    final externalReady = _extConfig.isConfigured;
+
+    if (!localRunning && !externalReady) {
+      _showToast('请先在 AI 页面启动推理服务或配置外部模型');
       return;
     }
+
     final count = await SummaryDb.countGenerating();
     if (count >= 3) {
       _showToast('当前已有 3 个分析任务，请稍后');
@@ -131,13 +142,28 @@ class _MatchDetailScreenState extends State<MatchDetailScreen> {
     }
     setState(() => _aiState = _AiState.generating);
     try {
-      final content = await AiSummaryService.generate(
-        _detail!,
-        widget.api.userId,
-        widget.match.gameId,
-      );
+      final String content;
+      // 优先用本地模型，本地不可用时用外部
+      if (localRunning) {
+        content = await AiSummaryService.generate(
+          _detail!,
+          widget.api.userId,
+          widget.match.gameId,
+        );
+      } else {
+        content = await AiSummaryService.generateExternal(
+          _detail!,
+          widget.api.userId,
+          widget.match.gameId,
+          _extConfig,
+        );
+      }
       if (mounted) {
-        setState(() { _summaryContent = content; _aiState = _AiState.done; });
+        setState(() {
+          _summaryContent = content;
+          _aiState = _AiState.done;
+          _isExternalSummary = !localRunning;
+        });
       }
     } catch (e) {
       if (mounted) setState(() => _aiState = _AiState.error);
@@ -255,7 +281,11 @@ class _DetailBody extends StatelessWidget {
         return 0;
       });
 
-    final totalDmg = detail.players.fold(0, (s, p) => s + p.heroDamage);
+    // 每个队伍单独统计总伤害，用于计算队内伤害占比
+    final teamDmgMap = <String, int>{};
+    for (final e in teams.entries) {
+      teamDmgMap[e.key] = e.value.fold(0, (s, p) => s + p.heroDamage);
+    }
 
     if (sorted.isEmpty) {
       return Column(
@@ -314,7 +344,7 @@ class _DetailBody extends StatelessWidget {
                     player:    p,
                     isSelf:    p.userId == selfUserId,
                     isWinTeam: e.key == detail.winTeamName,
-                    totalDmg:  totalDmg,
+                    totalDmg:  teamDmgMap[e.key] ?? 0,
                     api:       api,
                   ),
               ],

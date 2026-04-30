@@ -5,12 +5,14 @@ class AiSummaryResultPage extends StatelessWidget {
   final String content;
   final MatchDetail? detail;
   final String selfUserId;
+  final bool isExternal;
 
   const AiSummaryResultPage({
     super.key,
     required this.content,
     this.detail,
     required this.selfUserId,
+    this.isExternal = false,
   });
 
   @override
@@ -53,13 +55,17 @@ class AiSummaryResultPage extends StatelessWidget {
             ),
           ),
           const SizedBox(height: 16),
-          const Row(
+          Row(
             mainAxisAlignment: MainAxisAlignment.end,
             children: [
-              Icon(Icons.smartphone, size: 11, color: Color(0xFF484F58)),
-              SizedBox(width: 4),
-              Text('由设备本地 AI 生成',
-                  style: TextStyle(color: Color(0xFF484F58), fontSize: 11)),
+              Icon(
+                isExternal ? Icons.cloud_outlined : Icons.smartphone,
+                size: 11,
+                color: const Color(0xFF484F58),
+              ),
+              const SizedBox(width: 4),
+              Text(isExternal ? '由外部模型生成' : '由设备本地 AI 生成',
+                  style: const TextStyle(color: Color(0xFF484F58), fontSize: 11)),
             ],
           ),
         ],
