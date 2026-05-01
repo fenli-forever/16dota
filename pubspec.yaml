@@ -28,6 +28,8 @@ dependencies:
   # 工具
   intl: ^0.20.2
   crypto: ^3.0.6
+  package_info_plus: ^8.1.2
+  url_launcher: ^6.3.1
 
   # 本地 AI 推理
   flutter_gemma: ^0.13.6
