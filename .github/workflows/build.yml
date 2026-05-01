@@ -131,6 +131,17 @@ jobs:
           name: ios-ipa
           path: dist/ios
 
+      - name: Generate version.json
+        run: |
+          VERSION="${{ github.ref_name }}"
+          VERSION="${VERSION#v}"
+          cat > dist/version.json <<EOF
+          {
+            "version": "$VERSION",
+            "release_notes": ""
+          }
+          EOF
+
       - name: Create Release
         uses: softprops/action-gh-release@v2
         with:
@@ -150,5 +161,6 @@ jobs:
           files: |
             dist/android/*.apk
             dist/ios/16dota.ipa
+            dist/version.json
           draft: false
           prerelease: false
