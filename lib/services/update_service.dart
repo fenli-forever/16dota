@@ -60,7 +60,8 @@ class UpdateService {
   }
 
   static List<int> _parse(String v) {
-    final parts = v.replaceFirst(RegExp(r'^v'), '').split('.');
+    final clean = v.replaceFirst(RegExp(r'^v'), '').replaceFirst(RegExp(r'\+.*'), '');
+    final parts = clean.split('.');
     return List.generate(
         3, (i) => i < parts.length ? (int.tryParse(parts[i]) ?? 0) : 0);
   }
