@@ -1,5 +1,7 @@
 import 'dart:io';
 import 'package:dio/dio.dart';
+import 'package:open_filex/open_filex.dart';
+import 'package:path_provider/path_provider.dart';
 import 'package:url_launcher/url_launcher.dart';
 
 const _repo = 'fenli-forever/16dota';
@@ -61,6 +63,46 @@ class UpdateService {
     final parts = v.replaceFirst(RegExp(r'^v'), '').split('.');
     return List.generate(
         3, (i) => i < parts.length ? (int.tryParse(parts[i]) ?? 0) : 0);
+  }
+
+  /// Download APK and open for installation (Android only).
+  /// Returns the file path on success, null on failure.
+  /// [onProgress] receives 0.0~1.0 progress.
+  static Future<String?> downloadAndInstall(
+    String url, {
+    void Function(double progress)? onProgress,
+    CancelToken? cancelToken,
+  }) async {
+    if (!Platform.isAndroid) return null;
+
+    try {
+      final dir = await getTemporaryDirectory();
+      final savePath = '${dir.path}/16dota-update.apk';
+
+      await _dio.download(
+        url,
+        savePath,
+        cancelToken: cancelToken,
+        onReceiveProgress: (received, total) {
+          if (total > 0 && onProgress != null) {
+            onProgress(received / total);
+          }
+        },
+      );
+
+      // Open the APK for installation
+      final result = await OpenFilex.open(
+        savePath,
+        type: 'application/vnd.android.package-archive',
+      );
+
+      if (result.type == ResultType.done) {
+        return savePath;
+      }
+      return null;
+    } catch (_) {
+      return null;
+    }
   }
 
   static Future<void> openDownloadPage(String url) async {

@@ -1,7 +1,10 @@
+import 'dart:io';
+import 'package:dio/dio.dart';
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 import 'package:url_launcher/url_launcher.dart';
 import '../providers/update_provider.dart';
+import '../services/update_service.dart';
 
 class SettingsScreen extends StatelessWidget {
   const SettingsScreen({super.key});
@@ -47,48 +50,12 @@ class SettingsScreen extends StatelessWidget {
 
     if (update.isUpdateAvailable && update.latestInfo != null) {
       final info = update.latestInfo!;
+      final currentVersion = update.currentVersion;
       showDialog<void>(
         context: context,
-        builder: (ctx) => AlertDialog(
-          backgroundColor: const Color(0xFF161B22),
-          shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
-          title: Row(
-            children: [
-              const Icon(Icons.system_update_outlined, color: Color(0xFFE8A020), size: 22),
-              const SizedBox(width: 8),
-              Text(
-                '发现新版本 v${info.version}',
-                style: const TextStyle(
-                    color: Color(0xFFCDD9E5), fontSize: 16, fontWeight: FontWeight.bold),
-              ),
-            ],
-          ),
-          content: Column(
-            mainAxisSize: MainAxisSize.min,
-            crossAxisAlignment: CrossAxisAlignment.start,
-            children: [
-              if (info.releaseNotes.isNotEmpty)
-                Text(info.releaseNotes,
-                    style: const TextStyle(
-                        color: Color(0xFFCDD9E5), fontSize: 13, height: 1.5)),
-            ],
-          ),
-          actions: [
-            TextButton(
-              onPressed: () => Navigator.pop(ctx),
-              child: const Text('暂不更新', style: TextStyle(color: Color(0xFF8B949E))),
-            ),
-            FilledButton(
-              style: FilledButton.styleFrom(backgroundColor: const Color(0xFFE8A020)),
-              onPressed: () async {
-                Navigator.pop(ctx);
-                final url = Uri.tryParse(info.downloadUrl);
-                if (url != null) await launchUrl(url, mode: LaunchMode.externalApplication);
-              },
-              child: const Text('立即更新',
-                  style: TextStyle(color: Colors.black, fontWeight: FontWeight.bold)),
-            ),
-          ],
+        builder: (ctx) => _SettingsUpdateDialog(
+          currentVersion: currentVersion,
+          info: info,
         ),
       );
     } else {
@@ -210,4 +177,134 @@ class _CheckUpdateTile extends StatelessWidget {
               : const Icon(Icons.chevron_right, color: Color(0xFF484F58), size: 20),
         ),
       );
+}
+
+class _SettingsUpdateDialog extends StatefulWidget {
+  final String currentVersion;
+  final UpdateInfo info;
+
+  const _SettingsUpdateDialog({required this.currentVersion, required this.info});
+
+  @override
+  State<_SettingsUpdateDialog> createState() => _SettingsUpdateDialogState();
+}
+
+class _SettingsUpdateDialogState extends State<_SettingsUpdateDialog> {
+  double _progress = -1;
+  bool _failed = false;
+  CancelToken? _cancelToken;
+
+  bool get _isAndroid => Platform.isAndroid;
+  bool get _downloading => _progress >= 0 && _progress < 1 && !_failed;
+
+  void _startDownload() {
+    setState(() {
+      _progress = 0;
+      _failed = false;
+    });
+    _cancelToken = CancelToken();
+    UpdateService.downloadAndInstall(
+      widget.info.downloadUrl,
+      cancelToken: _cancelToken,
+      onProgress: (p) => setState(() => _progress = p),
+    ).then((path) {
+      if (!mounted) return;
+      if (path == null) setState(() => _failed = true);
+    });
+  }
+
+  void _fallbackToBrowser() async {
+    final url = Uri.tryParse(widget.info.downloadUrl);
+    if (url != null) await launchUrl(url, mode: LaunchMode.externalApplication);
+  }
+
+  @override
+  void dispose() {
+    _cancelToken?.cancel('dialog closed');
+    super.dispose();
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    return AlertDialog(
+      backgroundColor: const Color(0xFF161B22),
+      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+      title: Row(
+        children: [
+          const Icon(Icons.system_update_outlined, color: Color(0xFFE8A020), size: 22),
+          const SizedBox(width: 8),
+          Text(
+            '发现新版本 v${widget.info.version}',
+            style: const TextStyle(color: Color(0xFFCDD9E5), fontSize: 16, fontWeight: FontWeight.bold),
+          ),
+        ],
+      ),
+      content: Column(
+        mainAxisSize: MainAxisSize.min,
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          if (widget.info.releaseNotes.isNotEmpty)
+            Text(widget.info.releaseNotes,
+                style: const TextStyle(color: Color(0xFFCDD9E5), fontSize: 13, height: 1.5)),
+          if (_downloading) ...[
+            const SizedBox(height: 16),
+            LinearProgressIndicator(
+              value: _progress > 0 ? _progress : null,
+              backgroundColor: const Color(0xFF21262D),
+              valueColor: const AlwaysStoppedAnimation(Color(0xFFE8A020)),
+            ),
+            const SizedBox(height: 6),
+            Text(
+              _progress > 0 ? '下载中 ${(_progress * 100).toInt()}%' : '准备下载...',
+              style: const TextStyle(color: Color(0xFF8B949E), fontSize: 12),
+            ),
+          ],
+          if (_failed) ...[
+            const SizedBox(height: 12),
+            const Text('自动下载失败，请手动下载',
+                style: TextStyle(color: Color(0xFFF85149), fontSize: 12)),
+          ],
+        ],
+      ),
+      actions: [
+        if (!_downloading)
+          TextButton(
+            onPressed: () => Navigator.pop(context),
+            child: Text(_failed ? '关闭' : '暂不更新',
+                style: const TextStyle(color: Color(0xFF8B949E))),
+          ),
+        if (_downloading)
+          TextButton(
+            onPressed: () {
+              _cancelToken?.cancel('user cancelled');
+              setState(() {
+                _progress = -1;
+                _failed = false;
+              });
+            },
+            child: const Text('取消下载', style: TextStyle(color: Color(0xFF8B949E))),
+          ),
+        if (!_downloading && !_failed)
+          FilledButton(
+            style: FilledButton.styleFrom(backgroundColor: const Color(0xFFE8A020)),
+            onPressed: _isAndroid ? _startDownload : () {
+              Navigator.pop(context);
+              _fallbackToBrowser();
+            },
+            child: Text(_isAndroid ? '立即更新' : '前往下载',
+                style: const TextStyle(color: Colors.black, fontWeight: FontWeight.bold)),
+          ),
+        if (_failed)
+          FilledButton(
+            style: FilledButton.styleFrom(backgroundColor: const Color(0xFFE8A020)),
+            onPressed: () {
+              Navigator.pop(context);
+              _fallbackToBrowser();
+            },
+            child: const Text('手动下载',
+                style: TextStyle(color: Colors.black, fontWeight: FontWeight.bold)),
+          ),
+      ],
+    );
+  }
 }

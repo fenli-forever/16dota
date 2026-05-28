@@ -41,6 +41,7 @@ dependencies:
 
   # 文件选择（模型本地导入）
   file_picker: ^8.1.7
+  open_filex: ^4.7.0
 
 dev_dependencies:
   flutter_test:
