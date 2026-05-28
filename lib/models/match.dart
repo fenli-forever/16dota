@@ -226,10 +226,21 @@ class PlayerScore {
 class RuneRecord {
   final String name;
   final int level;
-  const RuneRecord({required this.name, required this.level});
+  final String imageUrl;
+  final String description;
+  const RuneRecord({required this.name, required this.level, this.imageUrl = '', this.description = ''});
   factory RuneRecord.fromJson(Map<String, dynamic> j) => RuneRecord(
-    name:  j['name']?.toString() ?? '',
-    level: (j['level'] as num?)?.toInt() ?? 0,
+    name:        j['name']?.toString() ?? '',
+    level:       (j['level'] as num?)?.toInt() ?? 0,
+    imageUrl:    j['image_url']?.toString()
+              ?? j['icon']?.toString()
+              ?? j['img_url']?.toString()
+              ?? j['img']?.toString()
+              ?? j['pic']?.toString()
+              ?? '',
+    description: j['description']?.toString()
+              ?? j['desc']?.toString()
+              ?? '',
   );
 }
 
