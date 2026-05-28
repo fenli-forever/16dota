@@ -1,3 +1,5 @@
+import '../data/rune_data.dart';
+
 // ── 战绩列表条目（来自 match_history）────────────────────────────────────
 class MatchRecord {
   final String gameId;
@@ -229,6 +231,15 @@ class RuneRecord {
   final String imageUrl;
   final String description;
   const RuneRecord({required this.name, required this.level, this.imageUrl = '', this.description = ''});
+
+  RuneInfo? get _staticInfo => RuneInfo.lookup(name, level: level > 0 ? level : null);
+
+  String get enrichedDescription =>
+      description.isNotEmpty ? description : _staticInfo?.description ?? '';
+
+  String get enrichedImageUrl =>
+      imageUrl.isNotEmpty ? imageUrl : _staticInfo?.imageUrl ?? '';
+
   factory RuneRecord.fromJson(Map<String, dynamic> j) => RuneRecord(
     name:        j['name']?.toString() ?? '',
     level:       (j['level'] as num?)?.toInt() ?? 0,

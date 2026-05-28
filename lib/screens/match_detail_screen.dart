@@ -2,12 +2,15 @@ import 'dart:io';
 import 'package:flutter/material.dart';
 import 'package:intl/intl.dart';
 import '../api/client.dart';
+import '../data/rune_data.dart';
 import '../models/match.dart';
 import '../services/ai_summary_service.dart';
 import '../services/external_ai_service.dart';
 import '../services/inference_service.dart';
 import '../services/summary_db.dart';
 import 'ai_summary_result_page.dart';
+import 'rune_detail_screen.dart';
+import 'rune_list_screen.dart';
 import 'user_match_history_screen.dart';
 
 // ── Screen ─────────────────────────────────────────────────────────────────
@@ -383,6 +386,32 @@ class _InfoBar extends StatelessWidget {
             const SizedBox(width: 4),
             Text('${detail.winTeamName} 获胜',
                 style: const TextStyle(color: Color(0xFFE8A020), fontSize: 12)),
+          ],
+          if (match.matchType == 'MD') ...[
+            const SizedBox(width: 12),
+            GestureDetector(
+              onTap: () => Navigator.push(
+                context,
+                MaterialPageRoute(builder: (_) => const RuneListScreen()),
+              ),
+              child: Container(
+                padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 3),
+                decoration: BoxDecoration(
+                  color: const Color(0xFF58A6FF).withValues(alpha: 0.12),
+                  borderRadius: BorderRadius.circular(4),
+                  border: Border.all(color: const Color(0xFF58A6FF).withValues(alpha: 0.35)),
+                ),
+                child: const Row(
+                  mainAxisSize: MainAxisSize.min,
+                  children: [
+                    Icon(Icons.auto_awesome, size: 12, color: Color(0xFF58A6FF)),
+                    SizedBox(width: 4),
+                    Text('符文介绍',
+                        style: TextStyle(color: Color(0xFF58A6FF), fontSize: 11, fontWeight: FontWeight.w600)),
+                  ],
+                ),
+              ),
+            ),
           ],
           const Spacer(),
           Text('# ${match.gameId}',
@@ -842,62 +871,60 @@ class _RuneChip extends StatelessWidget {
   final VoidCallback onTap;
   const _RuneChip({required this.rune, required this.onTap});
 
-  static const _size = 28.0;
+  static const _size = 32.0;
 
   @override
   Widget build(BuildContext context) {
     final hasImage = rune.imageUrl.isNotEmpty;
     return GestureDetector(
       onTap: onTap,
-      child: Container(
-        height: _size,
-        padding: const EdgeInsets.only(left: 4, right: 6),
-        decoration: BoxDecoration(
-          color: const Color(0xFF2D3139),
-          borderRadius: BorderRadius.circular(4),
-          border: Border.all(color: const Color(0xFF444C56)),
-        ),
-        child: Row(
-          mainAxisSize: MainAxisSize.min,
+      child: Tooltip(
+        message: rune.name,
+        child: Stack(
+          clipBehavior: Clip.none,
           children: [
-            if (hasImage)
-              ClipRRect(
+            Container(
+              width: _size,
+              height: _size,
+              decoration: BoxDecoration(
+                color: const Color(0xFF2D3139),
+                borderRadius: BorderRadius.circular(4),
+                border: Border.all(color: const Color(0xFF444C56)),
+              ),
+              child: ClipRRect(
                 borderRadius: BorderRadius.circular(3),
-                child: Image.network(
-                  rune.imageUrl,
-                  width: 20,
-                  height: 20,
-                  fit: BoxFit.cover,
-                  errorBuilder: (_, __, ___) => _runeFallback(),
-                ),
-              )
-            else
-              _runeFallback(),
-            const SizedBox(width: 4),
-            Text(
-              rune.name,
-              style: const TextStyle(
-                color: Color(0xFFCDD9E5),
-                fontSize: 11,
+                child: hasImage
+                    ? Image.network(
+                        rune.imageUrl,
+                        width: _size,
+                        height: _size,
+                        fit: BoxFit.cover,
+                        errorBuilder: (_, __, ___) => _runeFallback(),
+                      )
+                    : _runeFallback(),
               ),
             ),
-            const SizedBox(width: 3),
-            Container(
-              padding: const EdgeInsets.symmetric(horizontal: 3, vertical: 1),
-              decoration: BoxDecoration(
-                color: rune.level >= 2
-                    ? const Color(0xFF9B59B6).withValues(alpha: 0.3)
-                    : const Color(0xFF58A6FF).withValues(alpha: 0.2),
-                borderRadius: BorderRadius.circular(3),
-              ),
-              child: Text(
-                'Lv.${rune.level}',
-                style: TextStyle(
+            // Level badge at bottom-right
+            Positioned(
+              right: -2,
+              bottom: -2,
+              child: Container(
+                padding: const EdgeInsets.symmetric(horizontal: 3, vertical: 0.5),
+                decoration: BoxDecoration(
                   color: rune.level >= 2
-                      ? const Color(0xFFD8B4FE)
-                      : const Color(0xFF79C0FF),
-                  fontSize: 9,
-                  fontWeight: FontWeight.bold,
+                      ? const Color(0xFF7C3AED)
+                      : const Color(0xFF2563EB),
+                  borderRadius: BorderRadius.circular(3),
+                  border: Border.all(color: const Color(0xFF0D1117), width: 1),
+                ),
+                child: Text(
+                  '${rune.level}',
+                  style: const TextStyle(
+                    color: Colors.white,
+                    fontSize: 8,
+                    fontWeight: FontWeight.bold,
+                    height: 1.1,
+                  ),
                 ),
               ),
             ),
@@ -908,8 +935,8 @@ class _RuneChip extends StatelessWidget {
   }
 
   Widget _runeFallback() => Container(
-    width: 20,
-    height: 20,
+    width: _size,
+    height: _size,
     decoration: BoxDecoration(
       color: const Color(0xFF3D444D),
       borderRadius: BorderRadius.circular(3),
@@ -919,7 +946,7 @@ class _RuneChip extends StatelessWidget {
         rune.name.isNotEmpty ? rune.name[0] : '?',
         style: const TextStyle(
           color: Color(0xFFCDD9E5),
-          fontSize: 10,
+          fontSize: 12,
           fontWeight: FontWeight.bold,
         ),
       ),
@@ -928,117 +955,89 @@ class _RuneChip extends StatelessWidget {
 }
 
 void _showRuneDetail(BuildContext context, RuneRecord rune) {
-  showModalBottomSheet(
-    context: context,
-    backgroundColor: const Color(0xFF161B22),
-    shape: const RoundedRectangleBorder(
-      borderRadius: BorderRadius.vertical(top: Radius.circular(12)),
-    ),
-    builder: (_) => Padding(
-      padding: const EdgeInsets.fromLTRB(20, 16, 20, 24),
-      child: Column(
-        mainAxisSize: MainAxisSize.min,
-        children: [
-          Container(
-            width: 36,
-            height: 4,
-            decoration: BoxDecoration(
-              color: const Color(0xFF444C56),
-              borderRadius: BorderRadius.circular(2),
+  // Try to find matching static rune info for enriched display
+  final info = RuneInfo.lookup(rune.name, level: rune.level > 0 ? rune.level : null);
+  if (info != null) {
+    Navigator.push(
+      context,
+      MaterialPageRoute(builder: (_) => RuneDetailScreen(rune: info)),
+    );
+  } else {
+    // Fallback: show a simple bottom sheet if no static match
+    showModalBottomSheet(
+      context: context,
+      backgroundColor: const Color(0xFF161B22),
+      shape: const RoundedRectangleBorder(
+        borderRadius: BorderRadius.vertical(top: Radius.circular(12)),
+      ),
+      builder: (_) => Padding(
+        padding: const EdgeInsets.fromLTRB(20, 16, 20, 24),
+        child: Column(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            Container(
+              width: 36, height: 4,
+              decoration: BoxDecoration(
+                color: const Color(0xFF444C56),
+                borderRadius: BorderRadius.circular(2),
+              ),
             ),
-          ),
-          const SizedBox(height: 16),
-          Row(
-            children: [
-              if (rune.imageUrl.isNotEmpty)
-                ClipRRect(
-                  borderRadius: BorderRadius.circular(6),
-                  child: Image.network(
-                    rune.imageUrl,
-                    width: 48,
-                    height: 48,
-                    fit: BoxFit.cover,
-                    errorBuilder: (_, __, ___) => _runeDetailFallback(rune),
+            const SizedBox(height: 16),
+            Row(
+              children: [
+                Container(
+                  width: 48, height: 48,
+                  decoration: BoxDecoration(
+                    color: const Color(0xFF3D444D),
+                    borderRadius: BorderRadius.circular(6),
                   ),
-                )
-              else
-                _runeDetailFallback(rune),
-              const SizedBox(width: 12),
-              Expanded(
-                child: Column(
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  children: [
-                    Text(
-                      rune.name,
-                      style: const TextStyle(
-                        color: Colors.white,
-                        fontSize: 16,
-                        fontWeight: FontWeight.bold,
-                      ),
-                    ),
-                    const SizedBox(height: 2),
-                    Container(
-                      padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
-                      decoration: BoxDecoration(
-                        color: rune.level >= 2
-                            ? const Color(0xFF9B59B6).withValues(alpha: 0.3)
-                            : const Color(0xFF58A6FF).withValues(alpha: 0.2),
-                        borderRadius: BorderRadius.circular(4),
-                      ),
-                      child: Text(
-                        '等级 ${rune.level}',
-                        style: TextStyle(
-                          color: rune.level >= 2
-                              ? const Color(0xFFD8B4FE)
-                              : const Color(0xFF79C0FF),
-                          fontSize: 12,
-                          fontWeight: FontWeight.bold,
-                        ),
-                      ),
-                    ),
-                  ],
+                  child: Center(
+                    child: Text(rune.name.isNotEmpty ? rune.name[0] : '?',
+                        style: const TextStyle(color: Color(0xFFCDD9E5),
+                            fontSize: 20, fontWeight: FontWeight.bold)),
+                  ),
+                ),
+                const SizedBox(width: 12),
+                Expanded(
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      Text(rune.name,
+                          style: const TextStyle(color: Colors.white,
+                              fontSize: 16, fontWeight: FontWeight.bold)),
+                      const SizedBox(height: 2),
+                      Text('等级 ${rune.level}',
+                          style: TextStyle(
+                              color: rune.level >= 2
+                                  ? const Color(0xFFD8B4FE)
+                                  : const Color(0xFF79C0FF),
+                              fontSize: 12)),
+                    ],
+                  ),
+                ),
+              ],
+            ),
+            const SizedBox(height: 16),
+            Align(
+              alignment: Alignment.centerLeft,
+              child: Text(
+                rune.enrichedDescription.isNotEmpty
+                    ? rune.enrichedDescription
+                    : '暂无符文介绍',
+                style: TextStyle(
+                  color: rune.enrichedDescription.isNotEmpty
+                      ? const Color(0xFFCDD9E5)
+                      : const Color(0xFF8B949E),
+                  fontSize: 14, height: 1.5,
                 ),
               ),
-            ],
-          ),
-          const SizedBox(height: 16),
-          Align(
-            alignment: Alignment.centerLeft,
-            child: Text(
-              rune.description.isNotEmpty ? rune.description : '暂无符文介绍',
-              style: TextStyle(
-                color: rune.description.isNotEmpty
-                    ? const Color(0xFFCDD9E5)
-                    : const Color(0xFF8B949E),
-                fontSize: 14,
-                height: 1.5,
-              ),
             ),
-          ),
-        ],
+          ],
+        ),
       ),
-    ),
-  );
+    );
+  }
 }
-
-Widget _runeDetailFallback(RuneRecord rune) => Container(
-  width: 48,
-  height: 48,
-  decoration: BoxDecoration(
-    color: const Color(0xFF3D444D),
-    borderRadius: BorderRadius.circular(6),
-  ),
-  child: Center(
-    child: Text(
-      rune.name.isNotEmpty ? rune.name[0] : '?',
-      style: const TextStyle(
-        color: Color(0xFFCDD9E5),
-        fontSize: 20,
-        fontWeight: FontWeight.bold,
-      ),
-    ),
-  ),
-);
 
 // ── Type badge ─────────────────────────────────────────────────────────────
 
