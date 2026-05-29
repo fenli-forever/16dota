@@ -274,7 +274,11 @@ class RuneRecord {
     if (fwMatch != null) {
       return 'assets/runes/fw/fw_${fwMatch.group(1)}.png';
     }
-    if (lower.contains('dotamd_') || lower.contains('rune')) {
+    final dotamdMatch = RegExp(r'dotamd[_\\/-]?(\d+)').firstMatch(lower);
+    if (dotamdMatch != null) {
+      return 'assets/runes/fw/fw_${dotamdMatch.group(1)}.png';
+    }
+    if (lower.contains('rune')) {
       return 'assets/runes/ui/fw.png';
     }
     return null;

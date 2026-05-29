@@ -2,36 +2,33 @@ import 'package:dio/dio.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 
 class ExternalAiConfig {
-  static const _keyBaseUrl = 'ai_ext_base_url';
-  static const _keyApiKey = 'ai_ext_api_key';
-  static const _keyModel = 'ai_ext_model';
+  static const keyBaseUrl = 'ai_ext_base_url';
+  static const keyApiKey = 'ai_ext_api_key';
+  static const keyModel = 'ai_ext_model';
 
   String baseUrl;
   String apiKey;
   String model;
 
-  ExternalAiConfig({
-    this.baseUrl = '',
-    this.apiKey = '',
-    this.model = '',
-  });
+  ExternalAiConfig({this.baseUrl = '', this.apiKey = '', this.model = ''});
 
-  bool get isConfigured => baseUrl.isNotEmpty && apiKey.isNotEmpty && model.isNotEmpty;
+  bool get isConfigured =>
+      baseUrl.isNotEmpty && apiKey.isNotEmpty && model.isNotEmpty;
 
   static Future<ExternalAiConfig> load() async {
     final sp = await SharedPreferences.getInstance();
     return ExternalAiConfig(
-      baseUrl: sp.getString(_keyBaseUrl) ?? '',
-      apiKey: sp.getString(_keyApiKey) ?? '',
-      model: sp.getString(_keyModel) ?? '',
+      baseUrl: sp.getString(keyBaseUrl) ?? '',
+      apiKey: sp.getString(keyApiKey) ?? '',
+      model: sp.getString(keyModel) ?? '',
     );
   }
 
   Future<void> save() async {
     final sp = await SharedPreferences.getInstance();
-    await sp.setString(_keyBaseUrl, baseUrl);
-    await sp.setString(_keyApiKey, apiKey);
-    await sp.setString(_keyModel, model);
+    await sp.setString(keyBaseUrl, baseUrl);
+    await sp.setString(keyApiKey, apiKey);
+    await sp.setString(keyModel, model);
   }
 }
 
@@ -67,14 +64,17 @@ class ExternalAiService {
         ? 'chat/completions'
         : 'v1/chat/completions';
 
-    final resp = await dio.post(url, data: {
-      'model': model,
-      'messages': [
-        {'role': 'user', 'content': prompt},
-      ],
-      'temperature': temperature,
-      'max_tokens': maxTokens,
-    });
+    final resp = await dio.post(
+      url,
+      data: {
+        'model': model,
+        'messages': [
+          {'role': 'user', 'content': prompt},
+        ],
+        'temperature': temperature,
+        'max_tokens': maxTokens,
+      },
+    );
 
     final data = resp.data as Map<String, dynamic>;
     final choices = data['choices'] as List?;
@@ -102,15 +102,18 @@ class ExternalAiService {
         ? 'chat/completions'
         : 'v1/chat/completions';
 
-    final resp = await dio.post(url, data: {
-      'model': model,
-      'messages': [
-        {'role': 'system', 'content': systemPrompt},
-        {'role': 'user', 'content': userPrompt},
-      ],
-      'temperature': temperature,
-      'max_tokens': maxTokens,
-    });
+    final resp = await dio.post(
+      url,
+      data: {
+        'model': model,
+        'messages': [
+          {'role': 'system', 'content': systemPrompt},
+          {'role': 'user', 'content': userPrompt},
+        ],
+        'temperature': temperature,
+        'max_tokens': maxTokens,
+      },
+    );
 
     final data = resp.data as Map<String, dynamic>;
     final choices = data['choices'] as List?;
@@ -137,12 +140,15 @@ class ExternalAiService {
         ? 'chat/completions'
         : 'v1/chat/completions';
 
-    final resp = await dio.post(url, data: {
-      'model': model,
-      'messages': messages,
-      'temperature': temperature,
-      'max_tokens': maxTokens,
-    });
+    final resp = await dio.post(
+      url,
+      data: {
+        'model': model,
+        'messages': messages,
+        'temperature': temperature,
+        'max_tokens': maxTokens,
+      },
+    );
 
     final data = resp.data as Map<String, dynamic>;
     final choices = data['choices'] as List?;

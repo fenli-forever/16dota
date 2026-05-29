@@ -25,19 +25,13 @@ class RuneImage extends StatelessWidget {
     final resolvedImageUrl = imageUrl.startsWith(RegExp(r'https?://'))
         ? imageUrl
         : '';
-    Widget image;
-    if (resolvedImageUrl.isNotEmpty) {
-      image = Image.network(
-        resolvedImageUrl,
-        width: size,
-        height: size,
-        fit: BoxFit.cover,
-        errorBuilder: (_, _, _) =>
-            _assetOrFallback(fallback, resolvedAssetPath),
-      );
-    } else {
-      image = _assetOrFallback(fallback, resolvedAssetPath);
-    }
+    final image = resolvedAssetPath.isNotEmpty
+        ? _assetOrNetworkOrFallback(
+            fallback,
+            resolvedAssetPath,
+            resolvedImageUrl,
+          )
+        : _networkOrFallback(fallback, resolvedImageUrl);
 
     return ClipRRect(
       borderRadius: BorderRadius.circular(borderRadius),
@@ -45,10 +39,24 @@ class RuneImage extends StatelessWidget {
     );
   }
 
-  Widget _assetOrFallback(Widget fallback, String resolvedAssetPath) {
-    if (resolvedAssetPath.isEmpty) return fallback;
+  Widget _assetOrNetworkOrFallback(
+    Widget fallback,
+    String resolvedAssetPath,
+    String resolvedImageUrl,
+  ) {
     return Image.asset(
       resolvedAssetPath,
+      width: size,
+      height: size,
+      fit: BoxFit.cover,
+      errorBuilder: (_, _, _) => _networkOrFallback(fallback, resolvedImageUrl),
+    );
+  }
+
+  Widget _networkOrFallback(Widget fallback, String resolvedImageUrl) {
+    if (resolvedImageUrl.isEmpty) return fallback;
+    return Image.network(
+      resolvedImageUrl,
       width: size,
       height: size,
       fit: BoxFit.cover,
@@ -63,7 +71,11 @@ class RuneImage extends StatelessWidget {
     if (fwMatch != null) {
       return 'assets/runes/fw/fw_${fwMatch.group(1)}.png';
     }
-    if (lower.contains('dotamd_') || lower.contains('rune')) {
+    final dotamdMatch = RegExp(r'dotamd[_\\/-]?(\d+)').firstMatch(lower);
+    if (dotamdMatch != null) {
+      return 'assets/runes/fw/fw_${dotamdMatch.group(1)}.png';
+    }
+    if (lower.contains('rune')) {
       return 'assets/runes/ui/fw.png';
     }
     return '';

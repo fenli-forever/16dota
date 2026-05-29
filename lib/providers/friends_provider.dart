@@ -11,34 +11,34 @@ class FriendEntry {
   const FriendEntry({
     required this.userId,
     required this.nickname,
-    this.avatar   = '',
+    this.avatar = '',
     this.rankName = '',
   });
 
   Map<String, dynamic> toJson() => {
-    'userId':   userId,
+    'userId': userId,
     'nickname': nickname,
-    'avatar':   avatar,
+    'avatar': avatar,
     'rankName': rankName,
   };
 
   factory FriendEntry.fromJson(Map<String, dynamic> j) => FriendEntry(
-    userId:   j['userId']?.toString()   ?? '',
+    userId: j['userId']?.toString() ?? '',
     nickname: j['nickname']?.toString() ?? '',
-    avatar:   j['avatar']?.toString()   ?? '',
+    avatar: j['avatar']?.toString() ?? '',
     rankName: j['rankName']?.toString() ?? '',
   );
 }
 
 class FriendsProvider extends ChangeNotifier {
-  static const _key = 'saved_friends';
+  static const storageKey = 'saved_friends';
   List<FriendEntry> _friends = [];
 
   List<FriendEntry> get friends => _friends;
 
   Future<void> load() async {
     final prefs = await SharedPreferences.getInstance();
-    final raw   = prefs.getString(_key);
+    final raw = prefs.getString(storageKey);
     if (raw == null) return;
     try {
       final list = (jsonDecode(raw) as List).cast<Map<String, dynamic>>();
@@ -65,6 +65,8 @@ class FriendsProvider extends ChangeNotifier {
   Future<void> _save() async {
     final prefs = await SharedPreferences.getInstance();
     await prefs.setString(
-        _key, jsonEncode(_friends.map((f) => f.toJson()).toList()));
+      storageKey,
+      jsonEncode(_friends.map((f) => f.toJson()).toList()),
+    );
   }
 }

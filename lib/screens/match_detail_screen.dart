@@ -10,7 +10,6 @@ import '../services/inference_service.dart';
 import '../services/summary_db.dart';
 import '../widgets/rune_image.dart';
 import 'ai_summary_result_page.dart';
-import 'rune_detail_screen.dart';
 import 'rune_list_screen.dart';
 import 'user_match_history_screen.dart';
 
@@ -1082,35 +1081,64 @@ class _RuneChip extends StatelessWidget {
 }
 
 void _showRuneDetail(BuildContext context, RuneRecord rune) {
-  // Try to find matching static rune info for enriched display
   final info = RuneInfo.lookup(
     rune.name,
     level: rune.level > 0 ? rune.level : null,
   );
-  if (info != null) {
-    Navigator.push(
-      context,
-      MaterialPageRoute(builder: (_) => RuneDetailScreen(rune: info)),
-    );
-  } else {
-    // Fallback: show a simple bottom sheet if no static match
-    showModalBottomSheet(
-      context: context,
-      backgroundColor: const Color(0xFF161B22),
-      shape: const RoundedRectangleBorder(
-        borderRadius: BorderRadius.vertical(top: Radius.circular(12)),
-      ),
-      builder: (_) => Padding(
-        padding: const EdgeInsets.fromLTRB(20, 16, 20, 24),
+  showModalBottomSheet(
+    context: context,
+    isScrollControlled: true,
+    backgroundColor: const Color(0xFF161B22),
+    shape: const RoundedRectangleBorder(
+      borderRadius: BorderRadius.vertical(top: Radius.circular(12)),
+    ),
+    builder: (ctx) => _RuneDetailSheet(rune: rune, info: info),
+  );
+}
+
+class _RuneDetailSheet extends StatelessWidget {
+  final RuneRecord rune;
+  final RuneInfo? info;
+
+  const _RuneDetailSheet({required this.rune, required this.info});
+
+  @override
+  Widget build(BuildContext context) {
+    final name = info?.name ?? rune.name;
+    final level = info?.level ?? rune.level;
+    final description = info?.description.isNotEmpty == true
+        ? info!.description
+        : rune.enrichedDescription;
+    final stats = info?.stats ?? const <String, String>{};
+    final category = info?.category.isNotEmpty == true
+        ? info!.category
+        : level >= 2
+        ? '2级符文'
+        : '1级符文';
+    final levelColor = level >= 2
+        ? const Color(0xFFD8B4FE)
+        : const Color(0xFF79C0FF);
+
+    return SafeArea(
+      child: SingleChildScrollView(
+        padding: EdgeInsets.fromLTRB(
+          20,
+          16,
+          20,
+          24 + MediaQuery.of(context).viewInsets.bottom,
+        ),
         child: Column(
           mainAxisSize: MainAxisSize.min,
+          crossAxisAlignment: CrossAxisAlignment.start,
           children: [
-            Container(
-              width: 36,
-              height: 4,
-              decoration: BoxDecoration(
-                color: const Color(0xFF444C56),
-                borderRadius: BorderRadius.circular(2),
+            Center(
+              child: Container(
+                width: 36,
+                height: 4,
+                decoration: BoxDecoration(
+                  color: const Color(0xFF444C56),
+                  borderRadius: BorderRadius.circular(2),
+                ),
               ),
             ),
             const SizedBox(height: 16),
@@ -1125,9 +1153,9 @@ void _showRuneDetail(BuildContext context, RuneRecord rune) {
                   ),
                   clipBehavior: Clip.antiAlias,
                   child: RuneImage(
-                    imageUrl: rune.enrichedImageUrl,
-                    assetPath: rune.assetPath,
-                    fallbackText: rune.name,
+                    imageUrl: info?.imageUrl ?? rune.enrichedImageUrl,
+                    assetPath: info?.assetPath ?? rune.assetPath,
+                    fallbackText: name,
                     size: 48,
                     borderRadius: 6,
                     fallbackFontSize: 20,
@@ -1139,7 +1167,7 @@ void _showRuneDetail(BuildContext context, RuneRecord rune) {
                     crossAxisAlignment: CrossAxisAlignment.start,
                     children: [
                       Text(
-                        rune.name,
+                        name,
                         style: const TextStyle(
                           color: Colors.white,
                           fontSize: 16,
@@ -1148,33 +1176,33 @@ void _showRuneDetail(BuildContext context, RuneRecord rune) {
                       ),
                       const SizedBox(height: 2),
                       Text(
-                        '等级 ${rune.level}',
-                        style: TextStyle(
-                          color: rune.level >= 2
-                              ? const Color(0xFFD8B4FE)
-                              : const Color(0xFF79C0FF),
-                          fontSize: 12,
-                        ),
+                        '$category · 等级 $level',
+                        style: TextStyle(color: levelColor, fontSize: 12),
                       ),
                     ],
                   ),
                 ),
               ],
             ),
+            if (stats.isNotEmpty) ...[
+              const SizedBox(height: 16),
+              Wrap(
+                spacing: 8,
+                runSpacing: 8,
+                children: stats.entries
+                    .map((e) => _RuneStatPill(label: e.key, value: e.value))
+                    .toList(),
+              ),
+            ],
             const SizedBox(height: 16),
-            Align(
-              alignment: Alignment.centerLeft,
-              child: Text(
-                rune.enrichedDescription.isNotEmpty
-                    ? rune.enrichedDescription
-                    : '暂无符文介绍',
-                style: TextStyle(
-                  color: rune.enrichedDescription.isNotEmpty
-                      ? const Color(0xFFCDD9E5)
-                      : const Color(0xFF8B949E),
-                  fontSize: 14,
-                  height: 1.5,
-                ),
+            Text(
+              description.isNotEmpty ? description : '暂无符文介绍',
+              style: TextStyle(
+                color: description.isNotEmpty
+                    ? const Color(0xFFCDD9E5)
+                    : const Color(0xFF8B949E),
+                fontSize: 14,
+                height: 1.5,
               ),
             ),
           ],
@@ -1182,6 +1210,42 @@ void _showRuneDetail(BuildContext context, RuneRecord rune) {
       ),
     );
   }
+}
+
+class _RuneStatPill extends StatelessWidget {
+  final String label;
+  final String value;
+
+  const _RuneStatPill({required this.label, required this.value});
+
+  @override
+  Widget build(BuildContext context) => Container(
+    padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 7),
+    decoration: BoxDecoration(
+      color: const Color(0xFF0D1117),
+      borderRadius: BorderRadius.circular(6),
+      border: Border.all(color: const Color(0xFF30363D)),
+    ),
+    child: Column(
+      mainAxisSize: MainAxisSize.min,
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        Text(
+          label,
+          style: const TextStyle(color: Color(0xFF8B949E), fontSize: 11),
+        ),
+        const SizedBox(height: 2),
+        Text(
+          value,
+          style: const TextStyle(
+            color: Color(0xFFE8A020),
+            fontSize: 13,
+            fontWeight: FontWeight.bold,
+          ),
+        ),
+      ],
+    ),
+  );
 }
 
 // ── Type badge ─────────────────────────────────────────────────────────────

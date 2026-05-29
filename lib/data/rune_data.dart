@@ -22,7 +22,8 @@ class RuneInfo {
       return 'assets/runes/fw/$icon.png';
     }
     if (icon.startsWith('dotamd_')) {
-      return 'assets/runes/ui/fw.png';
+      final id = icon.substring('dotamd_'.length);
+      return 'assets/runes/fw/fw_$id.png';
     }
     if (icon == 'fw') {
       return 'assets/runes/ui/fw.png';
