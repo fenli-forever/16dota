@@ -17,6 +17,16 @@ class RuneInfo {
 
   String get imageUrl => 'https://cdn.16dota.com.cn/rune/$icon.png';
 
+  String get assetPath {
+    if (icon.startsWith('fw_')) {
+      return 'assets/runes/fw/$icon.png';
+    }
+    if (icon == 'fw') {
+      return 'assets/runes/ui/fw.png';
+    }
+    return '';
+  }
+
   // Lookup by name, optionally filtered by level
   static RuneInfo? lookup(String name, {int? level}) {
     if (level != null) {

@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import '../data/rune_data.dart';
+import '../widgets/rune_image.dart';
 
 class RuneDetailScreen extends StatelessWidget {
   final RuneInfo rune;
@@ -51,32 +52,13 @@ class RuneDetailScreen extends StatelessWidget {
             padding: const EdgeInsets.all(20),
             child: Row(
               children: [
-                ClipRRect(
-                  borderRadius: BorderRadius.circular(8),
-                  child: Image.network(
-                    rune.imageUrl,
-                    width: 72,
-                    height: 72,
-                    fit: BoxFit.cover,
-                    errorBuilder: (_, _, _) => Container(
-                      width: 72,
-                      height: 72,
-                      decoration: BoxDecoration(
-                        color: const Color(0xFF3D444D),
-                        borderRadius: BorderRadius.circular(8),
-                      ),
-                      child: Center(
-                        child: Text(
-                          rune.name.isNotEmpty ? rune.name[0] : '?',
-                          style: const TextStyle(
-                            color: Color(0xFFCDD9E5),
-                            fontSize: 28,
-                            fontWeight: FontWeight.bold,
-                          ),
-                        ),
-                      ),
-                    ),
-                  ),
+                RuneImage(
+                  imageUrl: rune.imageUrl,
+                  assetPath: rune.assetPath,
+                  fallbackText: rune.name,
+                  size: 72,
+                  borderRadius: 8,
+                  fallbackFontSize: 28,
                 ),
                 const SizedBox(width: 16),
                 Expanded(
@@ -262,21 +244,13 @@ class RuneDetailScreen extends StatelessWidget {
                     ),
                     child: ClipRRect(
                       borderRadius: BorderRadius.circular(5),
-                      child: Image.network(
-                        r.imageUrl,
-                        width: 48,
-                        height: 48,
-                        fit: BoxFit.cover,
-                        errorBuilder: (_, _, _) => Center(
-                          child: Text(
-                            r.name.isNotEmpty ? r.name[0] : '?',
-                            style: const TextStyle(
-                              color: Color(0xFFCDD9E5),
-                              fontSize: 14,
-                              fontWeight: FontWeight.bold,
-                            ),
-                          ),
-                        ),
+                      child: RuneImage(
+                        imageUrl: r.imageUrl,
+                        assetPath: r.assetPath,
+                        fallbackText: r.name,
+                        size: 48,
+                        borderRadius: 5,
+                        fallbackFontSize: 14,
                       ),
                     ),
                   ),

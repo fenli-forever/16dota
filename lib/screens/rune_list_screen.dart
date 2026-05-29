@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import '../data/rune_data.dart';
+import '../widgets/rune_image.dart';
 import 'rune_detail_screen.dart';
 
 class RuneListScreen extends StatefulWidget {
@@ -181,32 +182,12 @@ class _RuneListTile extends StatelessWidget {
         ),
         child: Row(
           children: [
-            ClipRRect(
-              borderRadius: BorderRadius.circular(6),
-              child: Image.network(
-                rune.imageUrl,
-                width: 40,
-                height: 40,
-                fit: BoxFit.cover,
-                errorBuilder: (_, _, _) => Container(
-                  width: 40,
-                  height: 40,
-                  decoration: BoxDecoration(
-                    color: const Color(0xFF3D444D),
-                    borderRadius: BorderRadius.circular(6),
-                  ),
-                  child: Center(
-                    child: Text(
-                      rune.name.isNotEmpty ? rune.name[0] : '?',
-                      style: const TextStyle(
-                        color: Color(0xFFCDD9E5),
-                        fontSize: 16,
-                        fontWeight: FontWeight.bold,
-                      ),
-                    ),
-                  ),
-                ),
-              ),
+            RuneImage(
+              imageUrl: rune.imageUrl,
+              assetPath: rune.assetPath,
+              fallbackText: rune.name,
+              size: 40,
+              borderRadius: 6,
             ),
             const SizedBox(width: 12),
             Expanded(

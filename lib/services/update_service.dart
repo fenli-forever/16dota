@@ -6,7 +6,6 @@ import 'package:url_launcher/url_launcher.dart';
 
 const _repo = 'fenli-forever/16dota';
 const _releasesApiUrl = 'https://api.github.com/repos/$_repo/releases/latest';
-const _downloadBaseUrl = 'https://github.com/$_repo/releases/latest/download';
 
 class UpdateInfo {
   final String version;
@@ -21,11 +20,13 @@ class UpdateInfo {
 }
 
 class UpdateService {
-  static final _dio = Dio(BaseOptions(
-    connectTimeout: const Duration(seconds: 10),
-    receiveTimeout: const Duration(seconds: 10),
-    headers: {'Accept': 'application/vnd.github+json'},
-  ));
+  static final _dio = Dio(
+    BaseOptions(
+      connectTimeout: const Duration(seconds: 10),
+      receiveTimeout: const Duration(seconds: 10),
+      headers: {'Accept': 'application/vnd.github+json'},
+    ),
+  );
 
   static Future<UpdateInfo?> fetchLatest() async {
     try {
@@ -34,13 +35,19 @@ class UpdateService {
       if (data == null) return null;
 
       final tagName = (data['tag_name'] as String?) ?? '';
+      final version = _cleanVersion(tagName);
       final body = (data['body'] as String?) ?? '';
+      final assets = (data['assets'] as List?) ?? const [];
+      final downloadUrl = _findAssetUrl(
+        assets,
+        Platform.isIOS ? '.ipa' : '.apk',
+      );
+
+      if (version.isEmpty || downloadUrl.isEmpty) return null;
 
       return UpdateInfo(
-        version: tagName,
-        downloadUrl: Platform.isIOS
-            ? '$_downloadBaseUrl/16dota.ipa'
-            : '$_downloadBaseUrl/16dota-release.apk',
+        version: version,
+        downloadUrl: downloadUrl,
         releaseNotes: body,
       );
     } catch (_) {
@@ -60,10 +67,38 @@ class UpdateService {
   }
 
   static List<int> _parse(String v) {
-    final clean = v.replaceFirst(RegExp(r'^v'), '').replaceFirst(RegExp(r'\+.*'), '');
+    final clean = _cleanVersion(v);
     final parts = clean.split('.');
     return List.generate(
-        3, (i) => i < parts.length ? (int.tryParse(parts[i]) ?? 0) : 0);
+      3,
+      (i) => i < parts.length ? (int.tryParse(parts[i]) ?? 0) : 0,
+    );
+  }
+
+  static String _cleanVersion(String v) => v
+      .trim()
+      .replaceFirst(RegExp(r'^v'), '')
+      .replaceFirst(RegExp(r'\+.*'), '');
+
+  static String _findAssetUrl(List<dynamic> assets, String extension) {
+    for (final asset in assets) {
+      if (asset is! Map<String, dynamic>) continue;
+      final name = (asset['name'] as String?) ?? '';
+      final url = (asset['browser_download_url'] as String?) ?? '';
+      if (url.isEmpty || !name.toLowerCase().endsWith(extension)) continue;
+      if (extension == '.apk' && name.toLowerCase().contains('debug')) {
+        continue;
+      }
+      return url;
+    }
+
+    for (final asset in assets) {
+      if (asset is! Map<String, dynamic>) continue;
+      final name = (asset['name'] as String?) ?? '';
+      final url = (asset['browser_download_url'] as String?) ?? '';
+      if (url.isNotEmpty && name.toLowerCase().endsWith(extension)) return url;
+    }
+    return '';
   }
 
   /// Download APK and open for installation (Android only).

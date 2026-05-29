@@ -8,6 +8,7 @@ import '../services/ai_summary_service.dart';
 import '../services/external_ai_service.dart';
 import '../services/inference_service.dart';
 import '../services/summary_db.dart';
+import '../widgets/rune_image.dart';
 import 'ai_summary_result_page.dart';
 import 'rune_detail_screen.dart';
 import 'rune_list_screen.dart';
@@ -1019,8 +1020,6 @@ class _RuneChip extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final imageUrl = rune.enrichedImageUrl;
-    final hasImage = imageUrl.isNotEmpty;
     return GestureDetector(
       onTap: onTap,
       child: Tooltip(
@@ -1038,15 +1037,14 @@ class _RuneChip extends StatelessWidget {
               ),
               child: ClipRRect(
                 borderRadius: BorderRadius.circular(3),
-                child: hasImage
-                    ? Image.network(
-                        imageUrl,
-                        width: _size,
-                        height: _size,
-                        fit: BoxFit.cover,
-                        errorBuilder: (_, _, _) => _runeFallback(),
-                      )
-                    : _runeFallback(),
+                child: RuneImage(
+                  imageUrl: rune.enrichedImageUrl,
+                  assetPath: rune.assetPath,
+                  fallbackText: rune.name,
+                  size: _size,
+                  borderRadius: 3,
+                  fallbackFontSize: 12,
+                ),
               ),
             ),
             // Level badge at bottom-right
@@ -1081,25 +1079,6 @@ class _RuneChip extends StatelessWidget {
       ),
     );
   }
-
-  Widget _runeFallback() => Container(
-    width: _size,
-    height: _size,
-    decoration: BoxDecoration(
-      color: const Color(0xFF3D444D),
-      borderRadius: BorderRadius.circular(3),
-    ),
-    child: Center(
-      child: Text(
-        rune.name.isNotEmpty ? rune.name[0] : '?',
-        style: const TextStyle(
-          color: Color(0xFFCDD9E5),
-          fontSize: 12,
-          fontWeight: FontWeight.bold,
-        ),
-      ),
-    ),
-  );
 }
 
 void _showRuneDetail(BuildContext context, RuneRecord rune) {
@@ -1114,8 +1093,6 @@ void _showRuneDetail(BuildContext context, RuneRecord rune) {
       MaterialPageRoute(builder: (_) => RuneDetailScreen(rune: info)),
     );
   } else {
-    final imageUrl = rune.enrichedImageUrl;
-    final hasImage = imageUrl.isNotEmpty;
     // Fallback: show a simple bottom sheet if no static match
     showModalBottomSheet(
       context: context,
@@ -1147,31 +1124,14 @@ void _showRuneDetail(BuildContext context, RuneRecord rune) {
                     borderRadius: BorderRadius.circular(6),
                   ),
                   clipBehavior: Clip.antiAlias,
-                  child: hasImage
-                      ? Image.network(
-                          imageUrl,
-                          fit: BoxFit.cover,
-                          errorBuilder: (_, _, _) => Center(
-                            child: Text(
-                              rune.name.isNotEmpty ? rune.name[0] : '?',
-                              style: const TextStyle(
-                                color: Color(0xFFCDD9E5),
-                                fontSize: 20,
-                                fontWeight: FontWeight.bold,
-                              ),
-                            ),
-                          ),
-                        )
-                      : Center(
-                          child: Text(
-                            rune.name.isNotEmpty ? rune.name[0] : '?',
-                            style: const TextStyle(
-                              color: Color(0xFFCDD9E5),
-                              fontSize: 20,
-                              fontWeight: FontWeight.bold,
-                            ),
-                          ),
-                        ),
+                  child: RuneImage(
+                    imageUrl: rune.enrichedImageUrl,
+                    assetPath: rune.assetPath,
+                    fallbackText: rune.name,
+                    size: 48,
+                    borderRadius: 6,
+                    fallbackFontSize: 20,
+                  ),
                 ),
                 const SizedBox(width: 12),
                 Expanded(
