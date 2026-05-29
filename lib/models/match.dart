@@ -261,9 +261,24 @@ class RuneRecord {
       description.isNotEmpty ? description : _staticInfo?.description ?? '';
 
   String get enrichedImageUrl =>
-      imageUrl.isNotEmpty ? imageUrl : _staticInfo?.imageUrl ?? '';
+      imageUrl.isNotEmpty && imageUrl.startsWith(RegExp(r'https?://'))
+      ? imageUrl
+      : _staticInfo?.imageUrl ?? '';
 
-  String get assetPath => _staticInfo?.assetPath ?? '';
+  String get assetPath =>
+      _assetPathFromIcon(imageUrl) ?? _staticInfo?.assetPath ?? '';
+
+  static String? _assetPathFromIcon(String icon) {
+    final lower = icon.toLowerCase();
+    final fwMatch = RegExp(r'fw[_\\/-]?(\d+)').firstMatch(lower);
+    if (fwMatch != null) {
+      return 'assets/runes/fw/fw_${fwMatch.group(1)}.png';
+    }
+    if (lower.contains('dotamd_') || lower.contains('rune')) {
+      return 'assets/runes/ui/fw.png';
+    }
+    return null;
+  }
 
   factory RuneRecord.fromJson(Map<String, dynamic> j) => RuneRecord(
     name: j['name']?.toString() ?? '',

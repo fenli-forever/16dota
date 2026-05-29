@@ -21,17 +21,22 @@ class RuneImage extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final fallback = _fallback();
+    final resolvedAssetPath = _resolveAssetPath(assetPath, imageUrl);
+    final resolvedImageUrl = imageUrl.startsWith(RegExp(r'https?://'))
+        ? imageUrl
+        : '';
     Widget image;
-    if (imageUrl.isNotEmpty) {
+    if (resolvedImageUrl.isNotEmpty) {
       image = Image.network(
-        imageUrl,
+        resolvedImageUrl,
         width: size,
         height: size,
         fit: BoxFit.cover,
-        errorBuilder: (_, _, _) => _assetOrFallback(fallback),
+        errorBuilder: (_, _, _) =>
+            _assetOrFallback(fallback, resolvedAssetPath),
       );
     } else {
-      image = _assetOrFallback(fallback);
+      image = _assetOrFallback(fallback, resolvedAssetPath);
     }
 
     return ClipRRect(
@@ -40,15 +45,28 @@ class RuneImage extends StatelessWidget {
     );
   }
 
-  Widget _assetOrFallback(Widget fallback) {
-    if (assetPath.isEmpty) return fallback;
+  Widget _assetOrFallback(Widget fallback, String resolvedAssetPath) {
+    if (resolvedAssetPath.isEmpty) return fallback;
     return Image.asset(
-      assetPath,
+      resolvedAssetPath,
       width: size,
       height: size,
       fit: BoxFit.cover,
       errorBuilder: (_, _, _) => fallback,
     );
+  }
+
+  String _resolveAssetPath(String explicitPath, String rawImage) {
+    if (explicitPath.isNotEmpty) return explicitPath;
+    final lower = rawImage.toLowerCase();
+    final fwMatch = RegExp(r'fw[_\\/-]?(\d+)').firstMatch(lower);
+    if (fwMatch != null) {
+      return 'assets/runes/fw/fw_${fwMatch.group(1)}.png';
+    }
+    if (lower.contains('dotamd_') || lower.contains('rune')) {
+      return 'assets/runes/ui/fw.png';
+    }
+    return '';
   }
 
   Widget _fallback() => Container(
