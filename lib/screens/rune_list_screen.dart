@@ -17,7 +17,7 @@ class _RuneListScreenState extends State<RuneListScreen>
   @override
   void initState() {
     super.initState();
-    _tab = TabController(length: 2, vsync: this);
+    _tab = TabController(length: 3, vsync: this);
   }
 
   @override
@@ -29,9 +29,19 @@ class _RuneListScreenState extends State<RuneListScreen>
   List<RuneInfo> _filter(List<RuneInfo> runes) {
     if (_query.isEmpty) return runes;
     final q = _query.toLowerCase();
-    return runes.where((r) =>
-        r.name.toLowerCase().contains(q) ||
-        r.description.toLowerCase().contains(q)).toList();
+    return runes
+        .where(
+          (r) =>
+              r.name.toLowerCase().contains(q) ||
+              r.description.toLowerCase().contains(q) ||
+              r.category.toLowerCase().contains(q) ||
+              r.stats.entries.any(
+                (e) =>
+                    e.key.toLowerCase().contains(q) ||
+                    e.value.toLowerCase().contains(q),
+              ),
+        )
+        .toList();
   }
 
   @override
@@ -45,8 +55,10 @@ class _RuneListScreenState extends State<RuneListScreen>
           icon: const Icon(Icons.arrow_back, color: Colors.white),
           onPressed: () => Navigator.pop(context),
         ),
-        title: const Text('符文介绍',
-            style: TextStyle(color: Colors.white, fontSize: 16)),
+        title: const Text(
+          '符文介绍',
+          style: TextStyle(color: Colors.white, fontSize: 16),
+        ),
         bottom: PreferredSize(
           preferredSize: const Size.fromHeight(88),
           child: Column(
@@ -60,26 +72,28 @@ class _RuneListScreenState extends State<RuneListScreen>
                   decoration: InputDecoration(
                     hintText: '搜索符文...',
                     hintStyle: const TextStyle(color: Color(0xFF484F58)),
-                    prefixIcon: const Icon(Icons.search,
-                        color: Color(0xFF484F58), size: 18),
+                    prefixIcon: const Icon(
+                      Icons.search,
+                      color: Color(0xFF484F58),
+                      size: 18,
+                    ),
                     filled: true,
                     fillColor: const Color(0xFF0D1117),
                     contentPadding: const EdgeInsets.symmetric(
-                        horizontal: 12, vertical: 8),
+                      horizontal: 12,
+                      vertical: 8,
+                    ),
                     border: OutlineInputBorder(
                       borderRadius: BorderRadius.circular(8),
-                      borderSide:
-                          const BorderSide(color: Color(0xFF30363D)),
+                      borderSide: const BorderSide(color: Color(0xFF30363D)),
                     ),
                     enabledBorder: OutlineInputBorder(
                       borderRadius: BorderRadius.circular(8),
-                      borderSide:
-                          const BorderSide(color: Color(0xFF30363D)),
+                      borderSide: const BorderSide(color: Color(0xFF30363D)),
                     ),
                     focusedBorder: OutlineInputBorder(
                       borderRadius: BorderRadius.circular(8),
-                      borderSide:
-                          const BorderSide(color: Color(0xFF58A6FF)),
+                      borderSide: const BorderSide(color: Color(0xFF58A6FF)),
                     ),
                     isDense: true,
                   ),
@@ -92,8 +106,11 @@ class _RuneListScreenState extends State<RuneListScreen>
                 labelColor: const Color(0xFFE8A020),
                 unselectedLabelColor: const Color(0xFF8B949E),
                 labelStyle: const TextStyle(
-                    fontSize: 13, fontWeight: FontWeight.w600),
+                  fontSize: 13,
+                  fontWeight: FontWeight.w600,
+                ),
                 tabs: [
+                  Tab(text: 'MD装备 (${_filter(kMdRuneItems).length})'),
                   Tab(text: '1级符文 (${_filter(kLevel1Runes).length})'),
                   Tab(text: '2级符文 (${_filter(kLevel2Runes).length})'),
                 ],
@@ -105,6 +122,7 @@ class _RuneListScreenState extends State<RuneListScreen>
       body: TabBarView(
         controller: _tab,
         children: [
+          _buildList(_filter(kMdRuneItems)),
           _buildList(_filter(kLevel1Runes)),
           _buildList(_filter(kLevel2Runes)),
         ],
@@ -115,8 +133,10 @@ class _RuneListScreenState extends State<RuneListScreen>
   Widget _buildList(List<RuneInfo> runes) {
     if (runes.isEmpty) {
       return const Center(
-        child: Text('没有找到匹配的符文',
-            style: TextStyle(color: Color(0xFF8B949E), fontSize: 14)),
+        child: Text(
+          '没有找到匹配的符文',
+          style: TextStyle(color: Color(0xFF8B949E), fontSize: 14),
+        ),
       );
     }
     return ListView.builder(
@@ -126,8 +146,7 @@ class _RuneListScreenState extends State<RuneListScreen>
         rune: runes[i],
         onTap: () => Navigator.push(
           context,
-          MaterialPageRoute(
-              builder: (_) => RuneDetailScreen(rune: runes[i])),
+          MaterialPageRoute(builder: (_) => RuneDetailScreen(rune: runes[i])),
         ),
       ),
     );
@@ -147,6 +166,9 @@ class _RuneListTile extends StatelessWidget {
     final levelBg = rune.level >= 2
         ? const Color(0xFF9B59B6).withValues(alpha: 0.3)
         : const Color(0xFF58A6FF).withValues(alpha: 0.2);
+    final badgeText = rune.category.isNotEmpty
+        ? rune.category
+        : 'Lv.${rune.level}';
 
     return InkWell(
       onTap: onTap,
@@ -154,8 +176,8 @@ class _RuneListTile extends StatelessWidget {
         padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 10),
         decoration: const BoxDecoration(
           border: Border(
-              bottom:
-                  BorderSide(color: Color(0xFF21262D), width: 0.5)),
+            bottom: BorderSide(color: Color(0xFF21262D), width: 0.5),
+          ),
         ),
         child: Row(
           children: [
@@ -166,7 +188,7 @@ class _RuneListTile extends StatelessWidget {
                 width: 40,
                 height: 40,
                 fit: BoxFit.cover,
-                errorBuilder: (_, __, ___) => Container(
+                errorBuilder: (_, _, _) => Container(
                   width: 40,
                   height: 40,
                   decoration: BoxDecoration(
@@ -177,9 +199,10 @@ class _RuneListTile extends StatelessWidget {
                     child: Text(
                       rune.name.isNotEmpty ? rune.name[0] : '?',
                       style: const TextStyle(
-                          color: Color(0xFFCDD9E5),
-                          fontSize: 16,
-                          fontWeight: FontWeight.bold),
+                        color: Color(0xFFCDD9E5),
+                        fontSize: 16,
+                        fontWeight: FontWeight.bold,
+                      ),
                     ),
                   ),
                 ),
@@ -190,44 +213,56 @@ class _RuneListTile extends StatelessWidget {
               child: Column(
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
-                  Row(children: [
-                    Flexible(
-                      child: Text(rune.name,
+                  Row(
+                    children: [
+                      Flexible(
+                        child: Text(
+                          rune.name,
                           style: const TextStyle(
-                              color: Colors.white,
-                              fontSize: 14,
-                              fontWeight: FontWeight.w600),
-                          overflow: TextOverflow.ellipsis),
-                    ),
-                    const SizedBox(width: 6),
-                    Container(
-                      padding: const EdgeInsets.symmetric(
-                          horizontal: 5, vertical: 1),
-                      decoration: BoxDecoration(
-                        color: levelBg,
-                        borderRadius: BorderRadius.circular(3),
+                            color: Colors.white,
+                            fontSize: 14,
+                            fontWeight: FontWeight.w600,
+                          ),
+                          overflow: TextOverflow.ellipsis,
+                        ),
                       ),
-                      child: Text('Lv.${rune.level}',
+                      const SizedBox(width: 6),
+                      Container(
+                        padding: const EdgeInsets.symmetric(
+                          horizontal: 5,
+                          vertical: 1,
+                        ),
+                        decoration: BoxDecoration(
+                          color: levelBg,
+                          borderRadius: BorderRadius.circular(3),
+                        ),
+                        child: Text(
+                          badgeText,
                           style: TextStyle(
-                              color: levelColor,
-                              fontSize: 10,
-                              fontWeight: FontWeight.bold)),
+                            color: levelColor,
+                            fontSize: 10,
+                            fontWeight: FontWeight.bold,
+                          ),
+                        ),
+                      ),
+                    ],
+                  ),
+                  if (rune.description.isNotEmpty) ...[
+                    const SizedBox(height: 3),
+                    Text(
+                      rune.description,
+                      style: const TextStyle(
+                        color: Color(0xFF8B949E),
+                        fontSize: 12,
+                      ),
+                      maxLines: 2,
+                      overflow: TextOverflow.ellipsis,
                     ),
                   ],
-                ),
-                if (rune.description.isNotEmpty) ...[
-                  const SizedBox(height: 3),
-                  Text(rune.description,
-                      style: const TextStyle(
-                          color: Color(0xFF8B949E), fontSize: 12),
-                      maxLines: 2,
-                      overflow: TextOverflow.ellipsis),
                 ],
-              ],
               ),
             ),
-            const Icon(Icons.chevron_right,
-                color: Color(0xFF484F58), size: 20),
+            const Icon(Icons.chevron_right, color: Color(0xFF484F58), size: 20),
           ],
         ),
       ),

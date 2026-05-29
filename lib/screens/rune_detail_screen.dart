@@ -14,8 +14,19 @@ class RuneDetailScreen extends StatelessWidget {
         ? const Color(0xFF9B59B6).withValues(alpha: 0.3)
         : const Color(0xFF58A6FF).withValues(alpha: 0.2);
 
-    // Same-level runes for the bottom section
-    final sameLevel = rune.level >= 2 ? kLevel2Runes : kLevel1Runes;
+    final sameLevel = rune.category == 'MD初始装备'
+        ? kMdRuneItems
+        : rune.level >= 2
+        ? kLevel2Runes
+        : kLevel1Runes;
+    final badgeText = rune.category.isNotEmpty
+        ? rune.category
+        : rune.level >= 2
+        ? '2级符文（畸变）'
+        : '1级符文';
+    final sectionTitle = rune.category == 'MD初始装备'
+        ? '全部MD初始装备'
+        : '全部${rune.level}级符文';
 
     return Scaffold(
       backgroundColor: const Color(0xFF0D1117),
@@ -26,8 +37,10 @@ class RuneDetailScreen extends StatelessWidget {
           icon: const Icon(Icons.arrow_back, color: Colors.white),
           onPressed: () => Navigator.pop(context),
         ),
-        title: const Text('符文详情',
-            style: TextStyle(color: Colors.white, fontSize: 16)),
+        title: const Text(
+          '符文详情',
+          style: TextStyle(color: Colors.white, fontSize: 16),
+        ),
       ),
       body: ListView(
         padding: const EdgeInsets.only(bottom: 24),
@@ -45,7 +58,7 @@ class RuneDetailScreen extends StatelessWidget {
                     width: 72,
                     height: 72,
                     fit: BoxFit.cover,
-                    errorBuilder: (_, __, ___) => Container(
+                    errorBuilder: (_, _, _) => Container(
                       width: 72,
                       height: 72,
                       decoration: BoxDecoration(
@@ -56,9 +69,10 @@ class RuneDetailScreen extends StatelessWidget {
                         child: Text(
                           rune.name.isNotEmpty ? rune.name[0] : '?',
                           style: const TextStyle(
-                              color: Color(0xFFCDD9E5),
-                              fontSize: 28,
-                              fontWeight: FontWeight.bold),
+                            color: Color(0xFFCDD9E5),
+                            fontSize: 28,
+                            fontWeight: FontWeight.bold,
+                          ),
                         ),
                       ),
                     ),
@@ -69,25 +83,32 @@ class RuneDetailScreen extends StatelessWidget {
                   child: Column(
                     crossAxisAlignment: CrossAxisAlignment.start,
                     children: [
-                      Text(rune.name,
-                          style: const TextStyle(
-                              color: Colors.white,
-                              fontSize: 20,
-                              fontWeight: FontWeight.bold)),
+                      Text(
+                        rune.name,
+                        style: const TextStyle(
+                          color: Colors.white,
+                          fontSize: 20,
+                          fontWeight: FontWeight.bold,
+                        ),
+                      ),
                       const SizedBox(height: 6),
                       Container(
                         padding: const EdgeInsets.symmetric(
-                            horizontal: 8, vertical: 3),
+                          horizontal: 8,
+                          vertical: 3,
+                        ),
                         decoration: BoxDecoration(
                           color: levelBg,
                           borderRadius: BorderRadius.circular(4),
                         ),
                         child: Text(
-                            rune.level >= 2 ? '2级符文（畸变）' : '1级符文',
-                            style: TextStyle(
-                                color: levelColor,
-                                fontSize: 12,
-                                fontWeight: FontWeight.bold)),
+                          badgeText,
+                          style: TextStyle(
+                            color: levelColor,
+                            fontSize: 12,
+                            fontWeight: FontWeight.bold,
+                          ),
+                        ),
                       ),
                     ],
                   ),
@@ -95,6 +116,52 @@ class RuneDetailScreen extends StatelessWidget {
               ],
             ),
           ),
+
+          if (rune.stats.isNotEmpty)
+            Container(
+              width: double.infinity,
+              padding: const EdgeInsets.fromLTRB(16, 16, 16, 0),
+              child: Wrap(
+                spacing: 8,
+                runSpacing: 8,
+                children: rune.stats.entries.map((e) {
+                  return Container(
+                    padding: const EdgeInsets.symmetric(
+                      horizontal: 10,
+                      vertical: 7,
+                    ),
+                    decoration: BoxDecoration(
+                      color: const Color(0xFF161B22),
+                      borderRadius: BorderRadius.circular(6),
+                      border: Border.all(color: const Color(0xFF30363D)),
+                    ),
+                    child: Column(
+                      mainAxisSize: MainAxisSize.min,
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        Text(
+                          e.key,
+                          style: const TextStyle(
+                            color: Color(0xFF8B949E),
+                            fontSize: 11,
+                            fontWeight: FontWeight.w600,
+                          ),
+                        ),
+                        const SizedBox(height: 2),
+                        Text(
+                          e.value,
+                          style: const TextStyle(
+                            color: Color(0xFFE8A020),
+                            fontSize: 14,
+                            fontWeight: FontWeight.bold,
+                          ),
+                        ),
+                      ],
+                    ),
+                  );
+                }).toList(),
+              ),
+            ),
 
           // ── Description ──
           if (rune.description.isNotEmpty)
@@ -104,17 +171,23 @@ class RuneDetailScreen extends StatelessWidget {
               child: Column(
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
-                  const Text('效果说明',
-                      style: TextStyle(
-                          color: Color(0xFF8B949E),
-                          fontSize: 12,
-                          fontWeight: FontWeight.w600)),
+                  const Text(
+                    '效果说明',
+                    style: TextStyle(
+                      color: Color(0xFF8B949E),
+                      fontSize: 12,
+                      fontWeight: FontWeight.w600,
+                    ),
+                  ),
                   const SizedBox(height: 8),
-                  Text(rune.description,
-                      style: const TextStyle(
-                          color: Color(0xFFCDD9E5),
-                          fontSize: 14,
-                          height: 1.6)),
+                  Text(
+                    rune.description,
+                    style: const TextStyle(
+                      color: Color(0xFFCDD9E5),
+                      fontSize: 14,
+                      height: 1.6,
+                    ),
+                  ),
                 ],
               ),
             ),
@@ -127,17 +200,28 @@ class RuneDetailScreen extends StatelessWidget {
             padding: const EdgeInsets.fromLTRB(16, 12, 16, 4),
             child: Row(
               children: [
-                Container(width: 3, height: 14, color: levelColor,
-                    margin: const EdgeInsets.only(right: 8)),
-                Text('全部${rune.level}级符文',
-                    style: TextStyle(
-                        color: levelColor,
-                        fontWeight: FontWeight.bold,
-                        fontSize: 13)),
+                Container(
+                  width: 3,
+                  height: 14,
+                  color: levelColor,
+                  margin: const EdgeInsets.only(right: 8),
+                ),
+                Text(
+                  sectionTitle,
+                  style: TextStyle(
+                    color: levelColor,
+                    fontWeight: FontWeight.bold,
+                    fontSize: 13,
+                  ),
+                ),
                 const SizedBox(width: 8),
-                Text('${sameLevel.length}个',
-                    style: const TextStyle(
-                        color: Color(0xFF8B949E), fontSize: 11)),
+                Text(
+                  '${sameLevel.length}个',
+                  style: const TextStyle(
+                    color: Color(0xFF8B949E),
+                    fontSize: 11,
+                  ),
+                ),
               ],
             ),
           ),
@@ -157,8 +241,8 @@ class RuneDetailScreen extends StatelessWidget {
                           Navigator.pushReplacement(
                             context,
                             MaterialPageRoute(
-                                builder: (_) =>
-                                    RuneDetailScreen(rune: r)),
+                              builder: (_) => RuneDetailScreen(rune: r),
+                            ),
                           );
                         },
                   child: Container(
@@ -183,13 +267,14 @@ class RuneDetailScreen extends StatelessWidget {
                         width: 48,
                         height: 48,
                         fit: BoxFit.cover,
-                        errorBuilder: (_, __, ___) => Center(
+                        errorBuilder: (_, _, _) => Center(
                           child: Text(
                             r.name.isNotEmpty ? r.name[0] : '?',
                             style: const TextStyle(
-                                color: Color(0xFFCDD9E5),
-                                fontSize: 14,
-                                fontWeight: FontWeight.bold),
+                              color: Color(0xFFCDD9E5),
+                              fontSize: 14,
+                              fontWeight: FontWeight.bold,
+                            ),
                           ),
                         ),
                       ),

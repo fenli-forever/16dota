@@ -48,12 +48,16 @@ class _MatchDetailScreenState extends State<MatchDetailScreen> {
   }
 
   Future<void> _load() async {
-    setState(() { _loading = true; _error = ''; _debugInfo = ''; });
+    setState(() {
+      _loading = true;
+      _error = '';
+      _debugInfo = '';
+    });
     try {
       final raw = await widget.api.settlement(widget.match.gameId);
 
       final topKeys = raw.keys.toList();
-      final scores  = raw['scores'];
+      final scores = raw['scores'];
       final scoresType = scores?.runtimeType.toString() ?? 'null';
       String dbg = '顶层键: ${topKeys.join(', ')}\nscores类型: $scoresType';
       if (scores is Map) {
@@ -66,15 +70,20 @@ class _MatchDetailScreenState extends State<MatchDetailScreen> {
 
       if (mounted) {
         setState(() {
-          _detail    = MatchDetail.fromJson(raw);
+          _detail = MatchDetail.fromJson(raw);
           _debugInfo = dbg;
-          _loading   = false;
+          _loading = false;
         });
         _initAiState();
       }
     } catch (e) {
       debugPrint('[settlement error] $e');
-      if (mounted) setState(() { _error = e.toString(); _loading = false; });
+      if (mounted) {
+        setState(() {
+          _error = e.toString();
+          _loading = false;
+        });
+      }
     }
   }
 
@@ -178,9 +187,10 @@ class _MatchDetailScreenState extends State<MatchDetailScreen> {
     if (!mounted) return;
     ScaffoldMessenger.of(context).showSnackBar(
       SnackBar(
-          content: Text(msg),
-          backgroundColor: const Color(0xFF161B22),
-          behavior: SnackBarBehavior.floating),
+        content: Text(msg),
+        backgroundColor: const Color(0xFF161B22),
+        behavior: SnackBarBehavior.floating,
+      ),
     );
   }
 
@@ -189,7 +199,9 @@ class _MatchDetailScreenState extends State<MatchDetailScreen> {
     final m = widget.match;
     final resultColor = m.isInvalid
         ? const Color(0xFF484F58)
-        : m.isWin ? const Color(0xFF2EA043) : const Color(0xFFDA3633);
+        : m.isWin
+        ? const Color(0xFF2EA043)
+        : const Color(0xFFDA3633);
 
     return Scaffold(
       backgroundColor: const Color(0xFF0D1117),
@@ -201,38 +213,50 @@ class _MatchDetailScreenState extends State<MatchDetailScreen> {
           onPressed: () => Navigator.pop(context),
         ),
         titleSpacing: 0,
-        title: Row(children: [
-          _TypeBadge('天梯排位'),
-          const SizedBox(width: 6),
-          _TypeBadge(m.matchType),
-          const SizedBox(width: 10),
-          Expanded(
-            child: Text(
-              DateFormat('MM/dd HH:mm').format(m.startTime),
-              style: const TextStyle(color: Color(0xFF8B949E), fontSize: 12),
-              overflow: TextOverflow.ellipsis,
+        title: Row(
+          children: [
+            _TypeBadge('天梯排位'),
+            const SizedBox(width: 6),
+            _TypeBadge(m.matchType),
+            const SizedBox(width: 10),
+            Expanded(
+              child: Text(
+                DateFormat('MM/dd HH:mm').format(m.startTime),
+                style: const TextStyle(color: Color(0xFF8B949E), fontSize: 12),
+                overflow: TextOverflow.ellipsis,
+              ),
             ),
-          ),
-        ]),
+          ],
+        ),
         actions: [
-          if (_aiState != _AiState.none) _AiButton(
-            state: _aiState,
-            onTap: _onAiTap,
-          ),
+          if (_aiState != _AiState.none)
+            _AiButton(state: _aiState, onTap: _onAiTap),
           Padding(
             padding: const EdgeInsets.only(right: 16),
             child: Center(
               child: Container(
-                padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 5),
+                padding: const EdgeInsets.symmetric(
+                  horizontal: 14,
+                  vertical: 5,
+                ),
                 decoration: BoxDecoration(
                   color: resultColor.withValues(alpha: 0.15),
                   borderRadius: BorderRadius.circular(6),
-                  border: Border.all(color: resultColor.withValues(alpha: 0.45)),
+                  border: Border.all(
+                    color: resultColor.withValues(alpha: 0.45),
+                  ),
                 ),
                 child: Text(
-                  m.isInvalid ? '无效' : m.isWin ? '胜利' : '失败',
+                  m.isInvalid
+                      ? '无效'
+                      : m.isWin
+                      ? '胜利'
+                      : '失败',
                   style: TextStyle(
-                      color: resultColor, fontWeight: FontWeight.bold, fontSize: 13),
+                    color: resultColor,
+                    fontWeight: FontWeight.bold,
+                    fontSize: 13,
+                  ),
                 ),
               ),
             ),
@@ -240,16 +264,18 @@ class _MatchDetailScreenState extends State<MatchDetailScreen> {
         ],
       ),
       body: _loading
-          ? const Center(child: CircularProgressIndicator(color: Color(0xFFE8A020)))
+          ? const Center(
+              child: CircularProgressIndicator(color: Color(0xFFE8A020)),
+            )
           : _error.isNotEmpty
-              ? _ErrorView(error: _error, onRetry: _load)
-              : _DetailBody(
-                  detail: _detail!,
-                  match: m,
-                  selfUserId: widget.api.userId,
-                  debugInfo: _debugInfo,
-                  api: widget.api,
-                ),
+          ? _ErrorView(error: _error, onRetry: _load)
+          : _DetailBody(
+              detail: _detail!,
+              match: m,
+              selfUserId: widget.api.userId,
+              debugInfo: _debugInfo,
+              api: widget.api,
+            ),
     );
   }
 }
@@ -302,8 +328,10 @@ class _DetailBody extends StatelessWidget {
                 crossAxisAlignment: CrossAxisAlignment.start,
                 mainAxisAlignment: MainAxisAlignment.center,
                 children: [
-                  const Text('暂无详情数据',
-                      style: TextStyle(color: Color(0xFF8B949E), fontSize: 14)),
+                  const Text(
+                    '暂无详情数据',
+                    style: TextStyle(color: Color(0xFF8B949E), fontSize: 14),
+                  ),
                   if (debugInfo.isNotEmpty) ...[
                     const SizedBox(height: 16),
                     Container(
@@ -314,11 +342,14 @@ class _DetailBody extends StatelessWidget {
                         borderRadius: BorderRadius.circular(6),
                         border: Border.all(color: const Color(0xFF30363D)),
                       ),
-                      child: Text(debugInfo,
-                          style: const TextStyle(
-                              color: Color(0xFF58A6FF),
-                              fontSize: 11,
-                              fontFamily: 'monospace')),
+                      child: Text(
+                        debugInfo,
+                        style: const TextStyle(
+                          color: Color(0xFF58A6FF),
+                          fontSize: 11,
+                          fontFamily: 'monospace',
+                        ),
+                      ),
                     ),
                   ],
                 ],
@@ -338,18 +369,18 @@ class _DetailBody extends StatelessWidget {
             children: [
               for (final e in sorted) ...[
                 _TeamHeader(
-                  teamName:  e.key,
+                  teamName: e.key,
                   isWinTeam: e.key == detail.winTeamName,
-                  kills:     e.value.fold(0, (s, p) => s + p.kills),
+                  kills: e.value.fold(0, (s, p) => s + p.kills),
                 ),
                 for (final p in e.value)
                   _PlayerCard(
-                    player:    p,
-                    match:     match,
-                    isSelf:    p.userId == selfUserId,
+                    player: p,
+                    match: match,
+                    isSelf: p.userId == selfUserId,
                     isWinTeam: e.key == detail.winTeamName,
-                    totalDmg:  teamDmgMap[e.key] ?? 0,
-                    api:       api,
+                    totalDmg: teamDmgMap[e.key] ?? 0,
+                    api: api,
                   ),
               ],
             ],
@@ -381,11 +412,16 @@ class _InfoBar extends StatelessWidget {
           ],
           if (detail.winTeamName.isNotEmpty) ...[
             const SizedBox(width: 18),
-            const Icon(Icons.emoji_events_outlined,
-                size: 14, color: Color(0xFFE8A020)),
+            const Icon(
+              Icons.emoji_events_outlined,
+              size: 14,
+              color: Color(0xFFE8A020),
+            ),
             const SizedBox(width: 4),
-            Text('${detail.winTeamName} 获胜',
-                style: const TextStyle(color: Color(0xFFE8A020), fontSize: 12)),
+            Text(
+              '${detail.winTeamName} 获胜',
+              style: const TextStyle(color: Color(0xFFE8A020), fontSize: 12),
+            ),
           ],
           if (match.matchType == 'MD') ...[
             const SizedBox(width: 12),
@@ -399,23 +435,37 @@ class _InfoBar extends StatelessWidget {
                 decoration: BoxDecoration(
                   color: const Color(0xFF58A6FF).withValues(alpha: 0.12),
                   borderRadius: BorderRadius.circular(4),
-                  border: Border.all(color: const Color(0xFF58A6FF).withValues(alpha: 0.35)),
+                  border: Border.all(
+                    color: const Color(0xFF58A6FF).withValues(alpha: 0.35),
+                  ),
                 ),
                 child: const Row(
                   mainAxisSize: MainAxisSize.min,
                   children: [
-                    Icon(Icons.auto_awesome, size: 12, color: Color(0xFF58A6FF)),
+                    Icon(
+                      Icons.auto_awesome,
+                      size: 12,
+                      color: Color(0xFF58A6FF),
+                    ),
                     SizedBox(width: 4),
-                    Text('符文介绍',
-                        style: TextStyle(color: Color(0xFF58A6FF), fontSize: 11, fontWeight: FontWeight.w600)),
+                    Text(
+                      '符文介绍',
+                      style: TextStyle(
+                        color: Color(0xFF58A6FF),
+                        fontSize: 11,
+                        fontWeight: FontWeight.w600,
+                      ),
+                    ),
                   ],
                 ),
               ),
             ),
           ],
           const Spacer(),
-          Text('# ${match.gameId}',
-              style: const TextStyle(color: Color(0xFF484F58), fontSize: 11)),
+          Text(
+            '# ${match.gameId}',
+            style: const TextStyle(color: Color(0xFF484F58), fontSize: 11),
+          ),
         ],
       ),
     );
@@ -433,7 +483,10 @@ class _InfoChip extends StatelessWidget {
     children: [
       Icon(icon, size: 13, color: const Color(0xFF8B949E)),
       const SizedBox(width: 4),
-      Text(text, style: const TextStyle(color: Color(0xFF8B949E), fontSize: 12)),
+      Text(
+        text,
+        style: const TextStyle(color: Color(0xFF8B949E), fontSize: 12),
+      ),
     ],
   );
 }
@@ -456,28 +509,51 @@ class _TeamHeader extends StatelessWidget {
     return Container(
       color: tc.withValues(alpha: 0.07),
       padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
-      child: Row(children: [
-        Container(width: 3, height: 14, color: tc,
-            margin: const EdgeInsets.only(right: 8)),
-        Text(teamName.isEmpty ? '队伍' : teamName,
-            style: TextStyle(
-                color: tc, fontWeight: FontWeight.bold, fontSize: 13)),
-        const SizedBox(width: 8),
-        Container(
-          padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
-          decoration: BoxDecoration(
-            color: tc.withValues(alpha: 0.18),
-            borderRadius: BorderRadius.circular(3),
+      child: Row(
+        children: [
+          Container(
+            width: 3,
+            height: 14,
+            color: tc,
+            margin: const EdgeInsets.only(right: 8),
           ),
-          child: Text(isWinTeam ? '胜' : '负',
-              style: TextStyle(color: tc, fontSize: 10, fontWeight: FontWeight.bold)),
-        ),
-        const SizedBox(width: 12),
-        Icon(Icons.local_fire_department, size: 12, color: tc.withValues(alpha: 0.7)),
-        const SizedBox(width: 3),
-        Text('$kills 击杀',
-            style: TextStyle(color: tc.withValues(alpha: 0.8), fontSize: 11)),
-      ]),
+          Text(
+            teamName.isEmpty ? '队伍' : teamName,
+            style: TextStyle(
+              color: tc,
+              fontWeight: FontWeight.bold,
+              fontSize: 13,
+            ),
+          ),
+          const SizedBox(width: 8),
+          Container(
+            padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
+            decoration: BoxDecoration(
+              color: tc.withValues(alpha: 0.18),
+              borderRadius: BorderRadius.circular(3),
+            ),
+            child: Text(
+              isWinTeam ? '胜' : '负',
+              style: TextStyle(
+                color: tc,
+                fontSize: 10,
+                fontWeight: FontWeight.bold,
+              ),
+            ),
+          ),
+          const SizedBox(width: 12),
+          Icon(
+            Icons.local_fire_department,
+            size: 12,
+            color: tc.withValues(alpha: 0.7),
+          ),
+          const SizedBox(width: 3),
+          Text(
+            '$kills 击杀',
+            style: TextStyle(color: tc.withValues(alpha: 0.8), fontSize: 11),
+          ),
+        ],
+      ),
     );
   }
 }
@@ -503,13 +579,15 @@ class _PlayerCard extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final p       = player;
-    final tc      = isWinTeam ? const Color(0xFF2EA043) : const Color(0xFFDA3633);
-    final rpClr   = p.incRankPoints >= 0 ? const Color(0xFF2EA043) : const Color(0xFFDA3633);
-    final rpSign  = p.incRankPoints >= 0 ? '+' : '';
-    final dmgPct  = totalDmg > 0 ? p.heroDamage / totalDmg * 100 : 0.0;
-    final accent  = isSelf ? const Color(0xFFE8A020) : tc;
-    final cardBg  = isSelf
+    final p = player;
+    final tc = isWinTeam ? const Color(0xFF2EA043) : const Color(0xFFDA3633);
+    final rpClr = p.incRankPoints >= 0
+        ? const Color(0xFF2EA043)
+        : const Color(0xFFDA3633);
+    final rpSign = p.incRankPoints >= 0 ? '+' : '';
+    final dmgPct = totalDmg > 0 ? p.heroDamage / totalDmg * 100 : 0.0;
+    final accent = isSelf ? const Color(0xFFE8A020) : tc;
+    final cardBg = isSelf
         ? const Color(0xFFE8A020).withValues(alpha: 0.06)
         : const Color(0xFF161B22);
 
@@ -537,7 +615,6 @@ class _PlayerCard extends StatelessWidget {
                   child: Column(
                     crossAxisAlignment: CrossAxisAlignment.start,
                     children: [
-
                       // ── Row 1: MVP icon | avatar | hero+nick | KDA ──────
                       Row(
                         crossAxisAlignment: CrossAxisAlignment.center,
@@ -545,29 +622,38 @@ class _PlayerCard extends StatelessWidget {
                           SizedBox(
                             width: 18,
                             child: p.mvpScore > 0
-                                ? const Icon(Icons.star_rounded,
-                                    size: 16, color: Color(0xFFE8A020))
+                                ? const Icon(
+                                    Icons.star_rounded,
+                                    size: 16,
+                                    color: Color(0xFFE8A020),
+                                  )
                                 : p.isMostKills
-                                    ? const Icon(Icons.military_tech,
-                                        size: 16, color: Color(0xFF58A6FF))
-                                    : null,
+                                ? const Icon(
+                                    Icons.military_tech,
+                                    size: 16,
+                                    color: Color(0xFF58A6FF),
+                                  )
+                                : null,
                           ),
                           const SizedBox(width: 6),
                           GestureDetector(
-                            onTap: p.userId.isNotEmpty ? () => Navigator.push(
-                              context,
-                              MaterialPageRoute(
-                                builder: (_) => UserMatchHistoryScreen(
-                                  userId:      p.userId,
-                                  playerId:    '',
-                                  displayName: p.nickname.isNotEmpty
-                                      ? p.nickname : p.heroName,
-                                  avatar:      p.avatar,
-                                  rankName:    p.rankName,
-                                  api:         api,
-                                ),
-                              ),
-                            ) : null,
+                            onTap: p.userId.isNotEmpty
+                                ? () => Navigator.push(
+                                    context,
+                                    MaterialPageRoute(
+                                      builder: (_) => UserMatchHistoryScreen(
+                                        userId: p.userId,
+                                        playerId: '',
+                                        displayName: p.nickname.isNotEmpty
+                                            ? p.nickname
+                                            : p.heroName,
+                                        avatar: p.avatar,
+                                        rankName: p.rankName,
+                                        api: api,
+                                      ),
+                                    ),
+                                  )
+                                : null,
                             child: CircleAvatar(
                               radius: 20,
                               backgroundColor: const Color(0xFF30363D),
@@ -576,11 +662,14 @@ class _PlayerCard extends StatelessWidget {
                                   : null,
                               child: p.avatar.isEmpty
                                   ? Text(
-                                      p.heroName.isNotEmpty ? p.heroName[0] : '?',
+                                      p.heroName.isNotEmpty
+                                          ? p.heroName[0]
+                                          : '?',
                                       style: const TextStyle(
-                                          color: Colors.white,
-                                          fontSize: 14,
-                                          fontWeight: FontWeight.bold),
+                                        color: Colors.white,
+                                        fontSize: 14,
+                                        fontWeight: FontWeight.bold,
+                                      ),
                                     )
                                   : null,
                             ),
@@ -603,15 +692,22 @@ class _PlayerCard extends StatelessWidget {
                                   overflow: TextOverflow.ellipsis,
                                 ),
                                 if (p.heroName.isNotEmpty)
-                                  Text(p.nickname,
-                                      style: const TextStyle(
-                                          color: Color(0xFF8B949E), fontSize: 11),
-                                      overflow: TextOverflow.ellipsis),
+                                  Text(
+                                    p.nickname,
+                                    style: const TextStyle(
+                                      color: Color(0xFF8B949E),
+                                      fontSize: 11,
+                                    ),
+                                    overflow: TextOverflow.ellipsis,
+                                  ),
                                 if (p.rankName.isNotEmpty)
-                                  Text(p.rankName,
-                                      style: TextStyle(
-                                          color: _tierColor(p.rankName),
-                                          fontSize: 10)),
+                                  Text(
+                                    p.rankName,
+                                    style: TextStyle(
+                                      color: _tierColor(p.rankName),
+                                      fontSize: 10,
+                                    ),
+                                  ),
                               ],
                             ),
                           ),
@@ -622,33 +718,51 @@ class _PlayerCard extends StatelessWidget {
                               RichText(
                                 text: TextSpan(
                                   style: const TextStyle(
-                                      fontSize: 16,
-                                      fontWeight: FontWeight.bold),
+                                    fontSize: 16,
+                                    fontWeight: FontWeight.bold,
+                                  ),
                                   children: [
-                                    TextSpan(text: '${p.kills}',
-                                        style: const TextStyle(
-                                            color: Color(0xFF3FB950))),
-                                    const TextSpan(text: '/',
-                                        style: TextStyle(
-                                            color: Color(0xFF484F58),
-                                            fontWeight: FontWeight.normal)),
-                                    TextSpan(text: '${p.deaths}',
-                                        style: const TextStyle(
-                                            color: Color(0xFFFF7B72))),
-                                    const TextSpan(text: '/',
-                                        style: TextStyle(
-                                            color: Color(0xFF484F58),
-                                            fontWeight: FontWeight.normal)),
-                                    TextSpan(text: '${p.assists}',
-                                        style: const TextStyle(
-                                            color: Color(0xFF79C0FF))),
+                                    TextSpan(
+                                      text: '${p.kills}',
+                                      style: const TextStyle(
+                                        color: Color(0xFF3FB950),
+                                      ),
+                                    ),
+                                    const TextSpan(
+                                      text: '/',
+                                      style: TextStyle(
+                                        color: Color(0xFF484F58),
+                                        fontWeight: FontWeight.normal,
+                                      ),
+                                    ),
+                                    TextSpan(
+                                      text: '${p.deaths}',
+                                      style: const TextStyle(
+                                        color: Color(0xFFFF7B72),
+                                      ),
+                                    ),
+                                    const TextSpan(
+                                      text: '/',
+                                      style: TextStyle(
+                                        color: Color(0xFF484F58),
+                                        fontWeight: FontWeight.normal,
+                                      ),
+                                    ),
+                                    TextSpan(
+                                      text: '${p.assists}',
+                                      style: const TextStyle(
+                                        color: Color(0xFF79C0FF),
+                                      ),
+                                    ),
                                   ],
                                 ),
                               ),
                               Text(
                                 '${(p.participationRate * 100).toStringAsFixed(0)}% 参战',
                                 style: const TextStyle(
-                                    color: Color(0xFF8B949E), fontSize: 10),
+                                  color: Color(0xFF8B949E),
+                                  fontSize: 10,
+                                ),
                               ),
                             ],
                           ),
@@ -661,22 +775,30 @@ class _PlayerCard extends StatelessWidget {
                       Row(
                         children: [
                           ...List.generate(6, (i) {
-                            final name     = i < p.items.length      ? p.items[i]      : '';
-                            final imageUrl = i < p.itemImages.length ? p.itemImages[i] : '';
+                            final name = i < p.items.length ? p.items[i] : '';
+                            final imageUrl = i < p.itemImages.length
+                                ? p.itemImages[i]
+                                : '';
                             return Padding(
                               padding: const EdgeInsets.only(right: 4),
                               child: _ItemSlot(name: name, imageUrl: imageUrl),
                             );
                           }),
                           const Spacer(),
-                          const Icon(Icons.monetization_on,
-                              size: 13, color: Color(0xFFFFD700)),
+                          const Icon(
+                            Icons.monetization_on,
+                            size: 13,
+                            color: Color(0xFFFFD700),
+                          ),
                           const SizedBox(width: 3),
-                          Text(_fmt(p.gold),
-                              style: const TextStyle(
-                                  color: Color(0xFFFFD700),
-                                  fontSize: 13,
-                                  fontWeight: FontWeight.bold)),
+                          Text(
+                            _fmt(p.gold),
+                            style: const TextStyle(
+                              color: Color(0xFFFFD700),
+                              fontSize: 13,
+                              fontWeight: FontWeight.bold,
+                            ),
+                          ),
                         ],
                       ),
 
@@ -686,10 +808,14 @@ class _PlayerCard extends StatelessWidget {
                         Wrap(
                           spacing: 6,
                           runSpacing: 4,
-                          children: p.runes.map((r) => _RuneChip(
-                            rune: r,
-                            onTap: () => _showRuneDetail(context, r),
-                          )).toList(),
+                          children: p.runes
+                              .map(
+                                (r) => _RuneChip(
+                                  rune: r,
+                                  onTap: () => _showRuneDetail(context, r),
+                                ),
+                              )
+                              .toList(),
                         ),
                       ],
 
@@ -698,43 +824,56 @@ class _PlayerCard extends StatelessWidget {
                       // ── Row 3: stat bar ──────────────────────────────────
                       Row(
                         children: [
-                          Expanded(child: _StatCell(
-                            label: '天梯积分',
-                            value: p.rankPoints.toStringAsFixed(0),
-                            sub: '$rpSign${p.incRankPoints.toStringAsFixed(0)}',
-                            subColor: rpClr,
-                            color: Colors.white,
-                          )),
-                          Expanded(child: _StatCell(
-                            label: '参战率',
-                            value: '${(p.participationRate * 100).toStringAsFixed(0)}%',
-                            color: const Color(0xFFCDD9E5),
-                          )),
-                          Expanded(child: _StatCell(
-                            label: '正/反补',
-                            value: '${p.lastHits}/${p.denies}',
-                            color: const Color(0xFFCDD9E5),
-                          )),
-                          Expanded(child: _StatCell(
-                            label: '伤害',
-                            value: _fmt(p.heroDamage),
-                            sub: '${dmgPct.toStringAsFixed(1)}%',
-                            subColor: const Color(0xFF8B949E),
-                            color: const Color(0xFFFF7B72),
-                          )),
-                          Expanded(child: _StatCell(
-                            label: '治疗',
-                            value: _fmt(p.heroHealing),
-                            color: const Color(0xFF3FB950),
-                          )),
-                          Expanded(child: _StatCell(
-                            label: '推塔',
-                            value: _fmt(p.towerDamage),
-                            color: const Color(0xFF79C0FF),
-                          )),
+                          Expanded(
+                            child: _StatCell(
+                              label: '天梯积分',
+                              value: p.rankPoints.toStringAsFixed(0),
+                              sub:
+                                  '$rpSign${p.incRankPoints.toStringAsFixed(0)}',
+                              subColor: rpClr,
+                              color: Colors.white,
+                            ),
+                          ),
+                          Expanded(
+                            child: _StatCell(
+                              label: '参战率',
+                              value:
+                                  '${(p.participationRate * 100).toStringAsFixed(0)}%',
+                              color: const Color(0xFFCDD9E5),
+                            ),
+                          ),
+                          Expanded(
+                            child: _StatCell(
+                              label: '正/反补',
+                              value: '${p.lastHits}/${p.denies}',
+                              color: const Color(0xFFCDD9E5),
+                            ),
+                          ),
+                          Expanded(
+                            child: _StatCell(
+                              label: '伤害',
+                              value: _fmt(p.heroDamage),
+                              sub: '${dmgPct.toStringAsFixed(1)}%',
+                              subColor: const Color(0xFF8B949E),
+                              color: const Color(0xFFFF7B72),
+                            ),
+                          ),
+                          Expanded(
+                            child: _StatCell(
+                              label: '治疗',
+                              value: _fmt(p.heroHealing),
+                              color: const Color(0xFF3FB950),
+                            ),
+                          ),
+                          Expanded(
+                            child: _StatCell(
+                              label: '推塔',
+                              value: _fmt(p.towerDamage),
+                              color: const Color(0xFF79C0FF),
+                            ),
+                          ),
                         ],
                       ),
-
                     ],
                   ),
                 ),
@@ -754,8 +893,7 @@ class _PlayerCard extends StatelessWidget {
     return const Color(0xFF8B949E);
   }
 
-  String _fmt(int v) =>
-      v >= 10000 ? '${(v / 1000).toStringAsFixed(1)}k' : '$v';
+  String _fmt(int v) => v >= 10000 ? '${(v / 1000).toStringAsFixed(1)}k' : '$v';
 }
 
 // ── Stat cell ──────────────────────────────────────────────────────────────
@@ -779,23 +917,30 @@ class _StatCell extends StatelessWidget {
   Widget build(BuildContext context) => Column(
     mainAxisSize: MainAxisSize.min,
     children: [
-      Text(value,
-          style: TextStyle(
-              color: color,
-              fontSize: 12,
-              fontWeight: FontWeight.bold),
-          textAlign: TextAlign.center),
+      Text(
+        value,
+        style: TextStyle(
+          color: color,
+          fontSize: 12,
+          fontWeight: FontWeight.bold,
+        ),
+        textAlign: TextAlign.center,
+      ),
       if (sub != null)
-        Text(sub!,
-            style: TextStyle(
-                color: subColor ?? const Color(0xFF8B949E),
-                fontSize: 10),
-            textAlign: TextAlign.center),
+        Text(
+          sub!,
+          style: TextStyle(
+            color: subColor ?? const Color(0xFF8B949E),
+            fontSize: 10,
+          ),
+          textAlign: TextAlign.center,
+        ),
       const SizedBox(height: 2),
-      Text(label,
-          style: const TextStyle(
-              color: Color(0xFF8B949E), fontSize: 9),
-          textAlign: TextAlign.center),
+      Text(
+        label,
+        style: const TextStyle(color: Color(0xFF8B949E), fontSize: 9),
+        textAlign: TextAlign.center,
+      ),
     ],
   );
 }
@@ -811,7 +956,7 @@ class _ItemSlot extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final isEmpty  = name.isEmpty;
+    final isEmpty = name.isEmpty;
     final hasImage = imageUrl.isNotEmpty;
 
     return Tooltip(
@@ -823,25 +968,23 @@ class _ItemSlot extends StatelessWidget {
           color: isEmpty ? const Color(0xFF1C2128) : const Color(0xFF2D3139),
           borderRadius: BorderRadius.circular(4),
           border: Border.all(
-            color: isEmpty
-                ? const Color(0xFF2D333B)
-                : const Color(0xFF444C56),
+            color: isEmpty ? const Color(0xFF2D333B) : const Color(0xFF444C56),
           ),
         ),
         child: isEmpty
             ? const Icon(Icons.add, size: 10, color: Color(0xFF3D444D))
             : hasImage
-                ? ClipRRect(
-                    borderRadius: BorderRadius.circular(3),
-                    child: Image.network(
-                      imageUrl,
-                      width: _size,
-                      height: _size,
-                      fit: BoxFit.cover,
-                      errorBuilder: (context, error, stack) => _nameText(),
-                    ),
-                  )
-                : _nameText(),
+            ? ClipRRect(
+                borderRadius: BorderRadius.circular(3),
+                child: Image.network(
+                  imageUrl,
+                  width: _size,
+                  height: _size,
+                  fit: BoxFit.cover,
+                  errorBuilder: (context, error, stack) => _nameText(),
+                ),
+              )
+            : _nameText(),
       ),
     );
   }
@@ -852,10 +995,11 @@ class _ItemSlot extends StatelessWidget {
       child: Text(
         name,
         style: const TextStyle(
-            color: Color(0xFFCDD9E5),
-            fontSize: 6,
-            fontWeight: FontWeight.w500,
-            height: 1.1),
+          color: Color(0xFFCDD9E5),
+          fontSize: 6,
+          fontWeight: FontWeight.w500,
+          height: 1.1,
+        ),
         textAlign: TextAlign.center,
         overflow: TextOverflow.ellipsis,
         maxLines: 3,
@@ -875,7 +1019,8 @@ class _RuneChip extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final hasImage = rune.imageUrl.isNotEmpty;
+    final imageUrl = rune.enrichedImageUrl;
+    final hasImage = imageUrl.isNotEmpty;
     return GestureDetector(
       onTap: onTap,
       child: Tooltip(
@@ -895,11 +1040,11 @@ class _RuneChip extends StatelessWidget {
                 borderRadius: BorderRadius.circular(3),
                 child: hasImage
                     ? Image.network(
-                        rune.imageUrl,
+                        imageUrl,
                         width: _size,
                         height: _size,
                         fit: BoxFit.cover,
-                        errorBuilder: (_, __, ___) => _runeFallback(),
+                        errorBuilder: (_, _, _) => _runeFallback(),
                       )
                     : _runeFallback(),
               ),
@@ -909,7 +1054,10 @@ class _RuneChip extends StatelessWidget {
               right: -2,
               bottom: -2,
               child: Container(
-                padding: const EdgeInsets.symmetric(horizontal: 3, vertical: 0.5),
+                padding: const EdgeInsets.symmetric(
+                  horizontal: 3,
+                  vertical: 0.5,
+                ),
                 decoration: BoxDecoration(
                   color: rune.level >= 2
                       ? const Color(0xFF7C3AED)
@@ -956,13 +1104,18 @@ class _RuneChip extends StatelessWidget {
 
 void _showRuneDetail(BuildContext context, RuneRecord rune) {
   // Try to find matching static rune info for enriched display
-  final info = RuneInfo.lookup(rune.name, level: rune.level > 0 ? rune.level : null);
+  final info = RuneInfo.lookup(
+    rune.name,
+    level: rune.level > 0 ? rune.level : null,
+  );
   if (info != null) {
     Navigator.push(
       context,
       MaterialPageRoute(builder: (_) => RuneDetailScreen(rune: info)),
     );
   } else {
+    final imageUrl = rune.enrichedImageUrl;
+    final hasImage = imageUrl.isNotEmpty;
     // Fallback: show a simple bottom sheet if no static match
     showModalBottomSheet(
       context: context,
@@ -976,7 +1129,8 @@ void _showRuneDetail(BuildContext context, RuneRecord rune) {
           mainAxisSize: MainAxisSize.min,
           children: [
             Container(
-              width: 36, height: 4,
+              width: 36,
+              height: 4,
               decoration: BoxDecoration(
                 color: const Color(0xFF444C56),
                 borderRadius: BorderRadius.circular(2),
@@ -986,32 +1140,62 @@ void _showRuneDetail(BuildContext context, RuneRecord rune) {
             Row(
               children: [
                 Container(
-                  width: 48, height: 48,
+                  width: 48,
+                  height: 48,
                   decoration: BoxDecoration(
                     color: const Color(0xFF3D444D),
                     borderRadius: BorderRadius.circular(6),
                   ),
-                  child: Center(
-                    child: Text(rune.name.isNotEmpty ? rune.name[0] : '?',
-                        style: const TextStyle(color: Color(0xFFCDD9E5),
-                            fontSize: 20, fontWeight: FontWeight.bold)),
-                  ),
+                  clipBehavior: Clip.antiAlias,
+                  child: hasImage
+                      ? Image.network(
+                          imageUrl,
+                          fit: BoxFit.cover,
+                          errorBuilder: (_, _, _) => Center(
+                            child: Text(
+                              rune.name.isNotEmpty ? rune.name[0] : '?',
+                              style: const TextStyle(
+                                color: Color(0xFFCDD9E5),
+                                fontSize: 20,
+                                fontWeight: FontWeight.bold,
+                              ),
+                            ),
+                          ),
+                        )
+                      : Center(
+                          child: Text(
+                            rune.name.isNotEmpty ? rune.name[0] : '?',
+                            style: const TextStyle(
+                              color: Color(0xFFCDD9E5),
+                              fontSize: 20,
+                              fontWeight: FontWeight.bold,
+                            ),
+                          ),
+                        ),
                 ),
                 const SizedBox(width: 12),
                 Expanded(
                   child: Column(
                     crossAxisAlignment: CrossAxisAlignment.start,
                     children: [
-                      Text(rune.name,
-                          style: const TextStyle(color: Colors.white,
-                              fontSize: 16, fontWeight: FontWeight.bold)),
+                      Text(
+                        rune.name,
+                        style: const TextStyle(
+                          color: Colors.white,
+                          fontSize: 16,
+                          fontWeight: FontWeight.bold,
+                        ),
+                      ),
                       const SizedBox(height: 2),
-                      Text('等级 ${rune.level}',
-                          style: TextStyle(
-                              color: rune.level >= 2
-                                  ? const Color(0xFFD8B4FE)
-                                  : const Color(0xFF79C0FF),
-                              fontSize: 12)),
+                      Text(
+                        '等级 ${rune.level}',
+                        style: TextStyle(
+                          color: rune.level >= 2
+                              ? const Color(0xFFD8B4FE)
+                              : const Color(0xFF79C0FF),
+                          fontSize: 12,
+                        ),
+                      ),
                     ],
                   ),
                 ),
@@ -1028,7 +1212,8 @@ void _showRuneDetail(BuildContext context, RuneRecord rune) {
                   color: rune.enrichedDescription.isNotEmpty
                       ? const Color(0xFFCDD9E5)
                       : const Color(0xFF8B949E),
-                  fontSize: 14, height: 1.5,
+                  fontSize: 14,
+                  height: 1.5,
                 ),
               ),
             ),
@@ -1052,13 +1237,17 @@ class _TypeBadge extends StatelessWidget {
       color: const Color(0xFFE8A020).withValues(alpha: 0.12),
       borderRadius: BorderRadius.circular(4),
       border: Border.all(
-          color: const Color(0xFFE8A020).withValues(alpha: 0.35)),
+        color: const Color(0xFFE8A020).withValues(alpha: 0.35),
+      ),
     ),
-    child: Text(label,
-        style: const TextStyle(
-            color: Color(0xFFE8A020),
-            fontSize: 11,
-            fontWeight: FontWeight.w600)),
+    child: Text(
+      label,
+      style: const TextStyle(
+        color: Color(0xFFE8A020),
+        fontSize: 11,
+        fontWeight: FontWeight.w600,
+      ),
+    ),
   );
 }
 
@@ -1073,11 +1262,11 @@ class _AiButton extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final (label, active, showSpinner) = switch (state) {
-      _AiState.idle       => ('AI智能总结',   true,  false),
-      _AiState.generating => ('生成中…',      false, true),
-      _AiState.done       => ('查看AI总结',   true,  false),
-      _AiState.error      => ('重试分析',      true,  false),
-      _AiState.none       => ('',              false, false),
+      _AiState.idle => ('AI智能总结', true, false),
+      _AiState.generating => ('生成中…', false, true),
+      _AiState.done => ('查看AI总结', true, false),
+      _AiState.error => ('重试分析', true, false),
+      _AiState.none => ('', false, false),
     };
 
     final color = state == _AiState.error
@@ -1095,7 +1284,8 @@ class _AiButton extends StatelessWidget {
               color: color.withValues(alpha: active ? 0.15 : 0.07),
               borderRadius: BorderRadius.circular(6),
               border: Border.all(
-                  color: color.withValues(alpha: active ? 0.45 : 0.2)),
+                color: color.withValues(alpha: active ? 0.45 : 0.2),
+              ),
             ),
             child: Row(
               mainAxisSize: MainAxisSize.min,
@@ -1105,18 +1295,23 @@ class _AiButton extends StatelessWidget {
                     width: 10,
                     height: 10,
                     child: CircularProgressIndicator(
-                        strokeWidth: 1.5, color: color),
+                      strokeWidth: 1.5,
+                      color: color,
+                    ),
                   ),
                   const SizedBox(width: 5),
                 ] else ...[
                   Icon(Icons.auto_awesome, size: 12, color: color),
                   const SizedBox(width: 4),
                 ],
-                Text(label,
-                    style: TextStyle(
-                        color: color,
-                        fontSize: 12,
-                        fontWeight: FontWeight.w600)),
+                Text(
+                  label,
+                  style: TextStyle(
+                    color: color,
+                    fontSize: 12,
+                    fontWeight: FontWeight.w600,
+                  ),
+                ),
               ],
             ),
           ),
@@ -1138,12 +1333,13 @@ class _ErrorView extends StatelessWidget {
     child: Column(
       mainAxisSize: MainAxisSize.min,
       children: [
-        const Icon(Icons.error_outline,
-            color: Color(0xFF8B949E), size: 48),
+        const Icon(Icons.error_outline, color: Color(0xFF8B949E), size: 48),
         const SizedBox(height: 8),
-        Text(error,
-            textAlign: TextAlign.center,
-            style: const TextStyle(color: Color(0xFF8B949E))),
+        Text(
+          error,
+          textAlign: TextAlign.center,
+          style: const TextStyle(color: Color(0xFF8B949E)),
+        ),
         const SizedBox(height: 16),
         ElevatedButton(onPressed: onRetry, child: const Text('重试')),
       ],
