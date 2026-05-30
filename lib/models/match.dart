@@ -193,7 +193,7 @@ class PlayerScore {
     final user = j['user'] as Map<String, dynamic>? ?? {};
     final inventory =
         (j['inventory'] as List?)?.cast<Map<String, dynamic>>() ?? [];
-    final runeList = (j['runes'] as List?)?.cast<Map<String, dynamic>>() ?? [];
+    final runes = _extractRunes(j);
     // is_mvp 可能是 bool 或 Map{score:...}
     final mvpRaw = j['is_mvp'];
     final mvp = mvpRaw is Map
@@ -237,8 +237,74 @@ class PlayerScore {
                 '',
           )
           .toList(),
-      runes: runeList.map(RuneRecord.fromJson).toList(),
+      runes: runes,
     );
+  }
+
+  static List<RuneRecord> _extractRunes(Map<String, dynamic> playerJson) {
+    final records = <RuneRecord>[];
+    const keys = [
+      'runes',
+      'rune',
+      'rune_list',
+      'runeList',
+      'md_runes',
+      'mdRunes',
+      'md_rune',
+      'mdRune',
+      'magic_runes',
+      'magicRunes',
+      'services',
+      'service',
+    ];
+
+    for (final key in keys) {
+      _collectRuneRecords(playerJson[key], records);
+    }
+
+    final seen = <String>{};
+    return records.where((record) {
+      final name = RuneInfo.normalizeName(record.name);
+      if (name.isEmpty) return false;
+      final key = '$name@${record.level}@${record.imageUrl}';
+      if (seen.contains(key)) return false;
+      seen.add(key);
+      return true;
+    }).toList();
+  }
+
+  static void _collectRuneRecords(Object? value, List<RuneRecord> output) {
+    if (value == null) return;
+    if (value is String) {
+      final record = RuneRecord.fromDynamic(value);
+      if (record != null) output.add(record);
+      return;
+    }
+    if (value is List) {
+      for (final item in value) {
+        _collectRuneRecords(item, output);
+      }
+      return;
+    }
+    if (value is Map) {
+      final map = value.map((key, value) => MapEntry(key.toString(), value));
+      final record = RuneRecord.fromDynamic(map);
+      if (record != null) {
+        output.add(record);
+      }
+
+      for (final nestedKey in [
+        'runes',
+        'rune',
+        'items',
+        'list',
+        'data',
+        'value',
+        'services',
+      ]) {
+        _collectRuneRecords(map[nestedKey], output);
+      }
+    }
   }
 }
 
@@ -255,7 +321,7 @@ class RuneRecord {
   });
 
   RuneInfo? get _staticInfo =>
-      RuneInfo.lookup(name, level: level > 0 ? level : null);
+      RuneInfo.lookupLoose(name, level: level > 0 ? level : null);
 
   String get enrichedDescription =>
       description.isNotEmpty ? description : _staticInfo?.description ?? '';
@@ -268,6 +334,8 @@ class RuneRecord {
   String get assetPath =>
       _assetPathFromIcon(imageUrl) ?? _staticInfo?.assetPath ?? '';
 
+  bool get hasStaticInfo => _staticInfo != null;
+
   static String? _assetPathFromIcon(String icon) {
     final lower = icon.toLowerCase();
     final fwMatch = RegExp(r'fw[_\\/-]?(\d+)').firstMatch(lower);
@@ -276,7 +344,7 @@ class RuneRecord {
     }
     final dotamdMatch = RegExp(r'dotamd[_\\/-]?(\d+)').firstMatch(lower);
     if (dotamdMatch != null) {
-      return 'assets/runes/fw/fw_${dotamdMatch.group(1)}.png';
+      return 'assets/runes/ui/fw.png';
     }
     if (lower.contains('rune')) {
       return 'assets/runes/ui/fw.png';
@@ -284,18 +352,104 @@ class RuneRecord {
     return null;
   }
 
-  factory RuneRecord.fromJson(Map<String, dynamic> j) => RuneRecord(
-    name: j['name']?.toString() ?? '',
-    level: (j['level'] as num?)?.toInt() ?? 0,
-    imageUrl:
-        j['image_url']?.toString() ??
-        j['icon']?.toString() ??
-        j['img_url']?.toString() ??
-        j['img']?.toString() ??
-        j['pic']?.toString() ??
-        '',
-    description: j['description']?.toString() ?? j['desc']?.toString() ?? '',
-  );
+  factory RuneRecord.fromJson(Map<String, dynamic> j) =>
+      fromDynamic(j) ?? const RuneRecord(name: '', level: 0);
+
+  static RuneRecord? fromDynamic(Object? value) {
+    if (value is String) {
+      final name = value.trim();
+      if (name.isEmpty) return null;
+      final info = RuneInfo.lookupLoose(name);
+      if (info == null) return null;
+      return RuneRecord(
+        name: info.name,
+        level: info.level,
+        imageUrl: info.imageUrl,
+        description: info.description,
+      );
+    }
+
+    if (value is! Map) return null;
+    final j = value.map((key, value) => MapEntry(key.toString(), value));
+    final name = _firstString(j, const [
+      'name',
+      'rune_name',
+      'runeName',
+      'title',
+      'label',
+      'service_name',
+      'serviceName',
+    ]);
+    final imageUrl = _firstString(j, const [
+      'image_url',
+      'imageUrl',
+      'icon',
+      'icon_url',
+      'iconUrl',
+      'img_url',
+      'imgUrl',
+      'img',
+      'pic',
+    ]);
+    final description = _firstString(j, const [
+      'description',
+      'desc',
+      'effect',
+      'detail',
+    ]);
+    final level = _firstInt(j, const [
+      'level',
+      'lv',
+      'rune_level',
+      'runeLevel',
+    ]);
+    final info = RuneInfo.lookupLoose(name, level: level > 0 ? level : null);
+
+    if (name.isEmpty && info == null) return null;
+    if (info == null &&
+        level <= 0 &&
+        description.isEmpty &&
+        !_looksLikeRuneImage(imageUrl)) {
+      return null;
+    }
+    return RuneRecord(
+      name: info?.name ?? name,
+      level: level > 0 ? level : info?.level ?? 0,
+      imageUrl: imageUrl.isNotEmpty ? imageUrl : info?.imageUrl ?? '',
+      description: description.isNotEmpty
+          ? description
+          : info?.description ?? '',
+    );
+  }
+
+  static String _firstString(Map<String, dynamic> j, List<String> keys) {
+    for (final key in keys) {
+      final value = j[key];
+      if (value == null) continue;
+      final text = value.toString().trim();
+      if (text.isNotEmpty) return text;
+    }
+    return '';
+  }
+
+  static int _firstInt(Map<String, dynamic> j, List<String> keys) {
+    for (final key in keys) {
+      final value = j[key];
+      if (value is num) return value.toInt();
+      if (value is String) {
+        final parsed = int.tryParse(value);
+        if (parsed != null) return parsed;
+      }
+    }
+    return 0;
+  }
+
+  static bool _looksLikeRuneImage(String value) {
+    final lower = value.toLowerCase();
+    return lower.contains('rune') ||
+        lower.contains('dotamd') ||
+        RegExp(r'fw[_\\/-]?\d+').hasMatch(lower);
+  }
 }
 
 // ── 玩家简介 ──────────────────────────────────────────────────────────────

@@ -802,8 +802,8 @@ class _PlayerCard extends StatelessWidget {
                         ],
                       ),
 
-                      // ── Row 2.5: runes (MD mode only) ──────────────────────
-                      if (match.matchType == 'MD' && p.runes.isNotEmpty) ...[
+                      // ── Row 2.5: runes ─────────────────────────────────────
+                      if (p.runes.isNotEmpty) ...[
                         const SizedBox(height: 8),
                         Wrap(
                           spacing: 6,
@@ -1081,7 +1081,7 @@ class _RuneChip extends StatelessWidget {
 }
 
 void _showRuneDetail(BuildContext context, RuneRecord rune) {
-  final info = RuneInfo.lookup(
+  final info = RuneInfo.lookupLoose(
     rune.name,
     level: rune.level > 0 ? rune.level : null,
   );

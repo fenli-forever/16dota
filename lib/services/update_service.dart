@@ -92,6 +92,10 @@ class UpdateService {
       return url;
     }
 
+    if (extension == '.apk') {
+      return '';
+    }
+
     for (final asset in assets) {
       if (asset is! Map<String, dynamic>) continue;
       final name = (asset['name'] as String?) ?? '';

@@ -22,8 +22,7 @@ class RuneInfo {
       return 'assets/runes/fw/$icon.png';
     }
     if (icon.startsWith('dotamd_')) {
-      final id = icon.substring('dotamd_'.length);
-      return 'assets/runes/fw/fw_$id.png';
+      return 'assets/runes/ui/fw.png';
     }
     if (icon == 'fw') {
       return 'assets/runes/ui/fw.png';
@@ -33,22 +32,48 @@ class RuneInfo {
 
   // Lookup by name, optionally filtered by level
   static RuneInfo? lookup(String name, {int? level}) {
+    final normalizedName = normalizeName(name);
     if (level != null) {
-      return _byNameLevel['$name@$level'] ?? _byName[name];
+      return _byNameLevel['$normalizedName@$level'] ?? _byName[normalizedName];
     }
-    return _byName[name];
+    return _byName[normalizedName];
+  }
+
+  static String normalizeName(String name) => name
+      .replaceAll(RegExp(r'\|c[0-9a-fA-F]{8}'), '')
+      .replaceAll(RegExp(r'\|r'), '')
+      .replaceAll(RegExp(r'^[\[\(（【]?[一二三四五六七八九十0-9]+级符文[\]\)）】]?[:：\s-]*'), '')
+      .replaceAll(RegExp(r'\s+'), '')
+      .trim();
+
+  static RuneInfo? lookupLoose(String name, {int? level}) {
+    final normalizedName = normalizeName(name);
+    final exact = lookup(normalizedName, level: level);
+    if (exact != null) return exact;
+    if (normalizedName.length < 2) return null;
+    final candidates = level == null
+        ? allRunes
+        : allRunes.where((r) => r.level == level);
+    for (final rune in candidates) {
+      final runeName = normalizeName(rune.name);
+      if (normalizedName.contains(runeName) ||
+          runeName.contains(normalizedName)) {
+        return rune;
+      }
+    }
+    return null;
   }
 
   static final Map<String, RuneInfo> _byName = () {
     final map = <String, RuneInfo>{};
     for (final r in kLevel1Runes) {
-      map[r.name] = r;
+      map[normalizeName(r.name)] = r;
     }
     for (final r in kLevel2Runes) {
-      map[r.name] = r;
+      map[normalizeName(r.name)] = r;
     }
     for (final r in kMdRuneItems) {
-      map[r.name] = r;
+      map[normalizeName(r.name)] = r;
     }
     return map;
   }();
@@ -56,13 +81,13 @@ class RuneInfo {
   static final Map<String, RuneInfo> _byNameLevel = () {
     final map = <String, RuneInfo>{};
     for (final r in kLevel1Runes) {
-      map['${r.name}@${r.level}'] = r;
+      map['${normalizeName(r.name)}@${r.level}'] = r;
     }
     for (final r in kLevel2Runes) {
-      map['${r.name}@${r.level}'] = r;
+      map['${normalizeName(r.name)}@${r.level}'] = r;
     }
     for (final r in kMdRuneItems) {
-      map['${r.name}@${r.level}'] = r;
+      map['${normalizeName(r.name)}@${r.level}'] = r;
     }
     return map;
   }();
@@ -77,7 +102,7 @@ class RuneInfo {
 const List<RuneInfo> kMdRuneItems = [
   RuneInfo(
     name: '攻击之弩',
-    icon: 'fw',
+    icon: 'fw_1',
     level: 1,
     category: 'MD初始装备',
     description: '攻击 + 20%；普攻削减敌人 2 点护甲，持续 8 秒。',
@@ -85,7 +110,7 @@ const List<RuneInfo> kMdRuneItems = [
   ),
   RuneInfo(
     name: '嗜血腰带',
-    icon: 'fw',
+    icon: 'fw_2',
     level: 1,
     category: 'MD初始装备',
     description: '法术吸血 + 8%；全属性 + 6。',
@@ -93,7 +118,7 @@ const List<RuneInfo> kMdRuneItems = [
   ),
   RuneInfo(
     name: '奥术法杖',
-    icon: 'fw',
+    icon: 'fw_3',
     level: 1,
     category: 'MD初始装备',
     description: '技能增强 + 10%；魔法回复 + 2。',
@@ -101,7 +126,7 @@ const List<RuneInfo> kMdRuneItems = [
   ),
   RuneInfo(
     name: '冷缩项链',
-    icon: 'fw',
+    icon: 'fw_4',
     level: 1,
     category: 'MD初始装备',
     description: '冷却缩减 + 8%；魔法回复 + 3。',
@@ -109,7 +134,7 @@ const List<RuneInfo> kMdRuneItems = [
   ),
   RuneInfo(
     name: '经验指环',
-    icon: 'fw',
+    icon: 'fw_5',
     level: 1,
     category: 'MD初始装备',
     description: '经验获取 + 16%；每分钟金币 + 30。',
@@ -117,7 +142,7 @@ const List<RuneInfo> kMdRuneItems = [
   ),
   RuneInfo(
     name: '施法之镜',
-    icon: 'fw',
+    icon: 'fw_6',
     level: 1,
     category: 'MD初始装备',
     description: '施法距离 + 150；全属性 + 6。',
@@ -125,7 +150,7 @@ const List<RuneInfo> kMdRuneItems = [
   ),
   RuneInfo(
     name: '魔法斗篷',
-    icon: 'fw',
+    icon: 'fw_7',
     level: 1,
     category: 'MD初始装备',
     description: '魔法抗性 + 25%；血量 + 5%。',
@@ -133,7 +158,7 @@ const List<RuneInfo> kMdRuneItems = [
   ),
   RuneInfo(
     name: '属性精酿',
-    icon: 'fw',
+    icon: 'fw_8',
     level: 1,
     category: 'MD初始装备',
     description: '主属性 + 25%；主属性 + 2。获得白字主属性的百分比加成。',
@@ -141,7 +166,7 @@ const List<RuneInfo> kMdRuneItems = [
   ),
   RuneInfo(
     name: '坚韧护甲',
-    icon: 'fw',
+    icon: 'fw_9',
     level: 1,
     category: 'MD初始装备',
     description: '护甲 + 10；血量 + 5%。',
@@ -149,7 +174,7 @@ const List<RuneInfo> kMdRuneItems = [
   ),
   RuneInfo(
     name: '攻击拳套',
-    icon: 'fw',
+    icon: 'fw_10',
     level: 1,
     category: 'MD初始装备',
     description: '攻击速度 + 30；物理吸血 + 8%。',
@@ -157,7 +182,7 @@ const List<RuneInfo> kMdRuneItems = [
   ),
   RuneInfo(
     name: '格挡之盾',
-    icon: 'fw',
+    icon: 'fw_11',
     level: 1,
     category: 'MD初始装备',
     description: '受到英雄/非英雄攻击有 100%/50% 的概率抵挡 22 伤害；全属性 + 6。',
@@ -165,7 +190,7 @@ const List<RuneInfo> kMdRuneItems = [
   ),
   RuneInfo(
     name: '银钥',
-    icon: 'fw',
+    icon: 'fw_12',
     level: 1,
     category: 'MD初始装备',
     description: '每分钟金钱 + 60；移动速度 + 20。',
@@ -173,7 +198,7 @@ const List<RuneInfo> kMdRuneItems = [
   ),
   RuneInfo(
     name: '见习之靴',
-    icon: 'fw',
+    icon: 'fw_13',
     level: 1,
     category: 'MD初始装备',
     description: '经验获取 + 16%；移动速度 + 20。',
@@ -181,7 +206,7 @@ const List<RuneInfo> kMdRuneItems = [
   ),
   RuneInfo(
     name: '施法宝典',
-    icon: 'fw',
+    icon: 'fw_14',
     level: 1,
     category: 'MD初始装备',
     description: '魔法回复 + 2；施法距离 + 150。',
@@ -189,7 +214,7 @@ const List<RuneInfo> kMdRuneItems = [
   ),
   RuneInfo(
     name: '血刃',
-    icon: 'fw',
+    icon: 'fw_15',
     level: 1,
     category: 'MD初始装备',
     description: '攻击 + 20%；物理吸血 + 8%。',
@@ -197,7 +222,7 @@ const List<RuneInfo> kMdRuneItems = [
   ),
   RuneInfo(
     name: '防御拳套',
-    icon: 'fw',
+    icon: 'fw_16',
     level: 1,
     category: 'MD初始装备',
     description: '全伤害格挡 + 7；生命回复 + 3。至少会受到 1 点伤害。',

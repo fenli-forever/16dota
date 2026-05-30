@@ -73,7 +73,7 @@ class RuneImage extends StatelessWidget {
     }
     final dotamdMatch = RegExp(r'dotamd[_\\/-]?(\d+)').firstMatch(lower);
     if (dotamdMatch != null) {
-      return 'assets/runes/fw/fw_${dotamdMatch.group(1)}.png';
+      return 'assets/runes/ui/fw.png';
     }
     if (lower.contains('rune')) {
       return 'assets/runes/ui/fw.png';
