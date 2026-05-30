@@ -217,6 +217,68 @@ class PlayerScore {
         ? j['hero'].toString()
         : '';
 
+    final explicitHeroImage = _imageUrl(
+      _firstStringFromMaps(
+        [j, heroMap],
+        const [
+          'hero_image',
+          'heroImage',
+          'hero_icon',
+          'heroIcon',
+          'hero_avatar',
+          'heroAvatar',
+          'hero_pic',
+          'heroPic',
+          'hero_img',
+          'heroImg',
+          'image_url',
+          'imageUrl',
+          'icon_url',
+          'iconUrl',
+          'avatar',
+          'pic',
+          'img_url',
+          'imgUrl',
+          'img',
+          'url',
+        ],
+      ),
+    );
+    final itemNames = inventory
+        .map(
+          (e) => _firstStringFromMaps(
+            [e],
+            const ['name', 'item_name', 'itemName', 'title', 'label'],
+          ),
+        )
+        .toList();
+    final itemImages = <String>[];
+    for (var i = 0; i < inventory.length; i++) {
+      final explicitItemImage = _imageUrl(
+        _firstStringFromMaps(
+          [inventory[i]],
+          const [
+            'image_url',
+            'imageUrl',
+            'icon',
+            'icon_url',
+            'iconUrl',
+            'img_url',
+            'imgUrl',
+            'img',
+            'pic',
+            'url',
+            'path',
+          ],
+        ),
+      );
+      itemImages.add(
+        explicitItemImage.isNotEmpty
+            ? explicitItemImage
+            : _dotaImageUrl(itemNames[i], 'equips'),
+      );
+    }
+
     return PlayerScore(
       userId: j['user_id']?.toString() ?? user['user_id']?.toString() ?? '',
       nickname: user['nick_name']?.toString() ?? j['name']?.toString() ?? '',
@@ -234,33 +296,9 @@ class PlayerScore {
         ),
       ),
       heroName: heroName,
-      heroImage: _imageUrl(
-        _firstStringFromMaps(
-          [j, heroMap],
-          const [
-            'hero_image',
-            'heroImage',
-            'hero_icon',
-            'heroIcon',
-            'hero_avatar',
-            'heroAvatar',
-            'hero_pic',
-            'heroPic',
-            'hero_img',
-            'heroImg',
-            'image_url',
-            'imageUrl',
-            'icon_url',
-            'iconUrl',
-            'avatar',
-            'pic',
-            'img_url',
-            'imgUrl',
-            'img',
-            'url',
-          ],
-        ),
-      ),
+      heroImage: explicitHeroImage.isNotEmpty
+          ? explicitHeroImage
+          : _dotaImageUrl(heroName, 'heroes'),
       teamName: j['team']?.toString() ?? '',
       kills: (j['kills'] as num?)?.toInt() ?? 0,
       deaths: (j['deaths'] as num?)?.toInt() ?? 0,
@@ -281,36 +319,8 @@ class PlayerScore {
       participationRate: (j['participation_rate'] as num?)?.toDouble() ?? 0,
       isMostKills: j['is_most_kills'] == true || mvp['is_most_kills'] == true,
       mvpScore: (mvp['score'] as num?)?.toDouble() ?? 0,
-      items: inventory
-          .map(
-            (e) => _firstStringFromMaps(
-              [e],
-              const ['name', 'item_name', 'itemName', 'title', 'label'],
-            ),
-          )
-          .toList(),
-      itemImages: inventory
-          .map(
-            (e) => _imageUrl(
-              _firstStringFromMaps(
-                [e],
-                const [
-                  'image_url',
-                  'imageUrl',
-                  'icon',
-                  'icon_url',
-                  'iconUrl',
-                  'img_url',
-                  'imgUrl',
-                  'img',
-                  'pic',
-                  'url',
-                  'path',
-                ],
-              ),
-            ),
-          )
-          .toList(),
+      items: itemNames,
+      itemImages: itemImages,
       runes: runes,
     );
   }
@@ -365,6 +375,13 @@ class PlayerScore {
     if (text.startsWith('//')) return 'https:$text';
     if (text.startsWith('/')) return 'https://img.16dota.com.cn$text';
     return text;
+  }
+
+  static String _dotaImageUrl(String name, String type) {
+    final text = name.trim();
+    if (text.isEmpty) return '';
+    return 'https://img.16dota.com.cn/resources/images/dota-$type/'
+        '${Uri.encodeComponent(text)}.jpg';
   }
 
   static List<RuneRecord> _extractRunes(Map<String, dynamic> playerJson) {
@@ -464,6 +481,7 @@ class RuneRecord {
 
   static String? _assetPathFromIcon(String icon) {
     final lower = icon.toLowerCase();
+    if (lower.startsWith(RegExp(r'https?://'))) return null;
     final fwMatch = RegExp(r'fw[_\\/-]?(\d+)').firstMatch(lower);
     if (fwMatch != null) {
       return 'assets/runes/fw/fw_${fwMatch.group(1)}.png';

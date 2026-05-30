@@ -11,14 +11,19 @@ void main() {
     }
   });
 
-  test('level 1 dotamd runes use generic rune icon instead of FW items', () {
+  test('level 1 dotamd runes use pc rune images instead of generic assets', () {
     final rune = kLevel1Runes.firstWhere((r) => r.icon == 'dotamd_1');
     expect(rune.name, '大力');
-    expect(rune.assetPath, 'assets/runes/ui/fw.png');
+    expect(rune.assetPath, '');
+    expect(
+      rune.imageUrl,
+      'https://img.16dota.com.cn/resources/images/dota-runes/'
+      '%E7%AC%A6%E6%96%87_%E5%A4%A7%E5%8A%9B.jpg',
+    );
   });
 
   test('rune lookup normalizes colored and prefixed names', () {
-    final rune = RuneInfo.lookupLoose('|cffffcc001级符文：大力|r', level: 1);
+    final rune = RuneInfo.lookupLoose('|cffffcc001级符文：符文_大力|r', level: 1);
     expect(rune?.name, '大力');
   });
 
@@ -63,5 +68,57 @@ void main() {
     expect(score.heroImage, 'https://img.16dota.com.cn/hero/tiny.png');
     expect(score.items, ['跳刀', '魔杖']);
     expect(score.itemImages.first, 'https://img.16dota.com.cn/item/blink.png');
+  });
+
+  test('player score fills 16dota hero image from settlement hero name', () {
+    final score = PlayerScore.fromJson({
+      'user_id': '1',
+      'name': 'moes',
+      'hero': '变体精灵',
+    });
+
+    expect(score.heroName, '变体精灵');
+    expect(
+      score.heroImage,
+      'https://img.16dota.com.cn/resources/images/dota-heroes/'
+      '%E5%8F%98%E4%BD%93%E7%B2%BE%E7%81%B5.jpg',
+    );
+  });
+
+  test('player score maps settlement rune names to pc rune images', () {
+    final score = PlayerScore.fromJson({
+      'user_id': '1',
+      'runes': [
+        {'name': '符文_猴子猴孙', 'level': 3},
+        {'name': '符文_万能狙击', 'level': 1},
+      ],
+    });
+
+    expect(score.runes.map((r) => r.name), ['猴子猴孙', '万能狙击']);
+    expect(
+      score.runes.first.enrichedImageUrl,
+      'https://img.16dota.com.cn/resources/images/dota-runes/'
+      '%E7%AC%A6%E6%96%87_%E7%8C%B4%E5%AD%90%E7%8C%B4%E5%AD%99.jpg',
+    );
+    expect(score.runes.first.assetPath, 'assets/runes/fw/fw_59.png');
+    expect(score.runes.last.assetPath, '');
+  });
+
+  test('player score fills 16dota item images from settlement item names', () {
+    final score = PlayerScore.fromJson({
+      'user_id': '1',
+      'inventory': [
+        {'name': '魔杖', 'stack': null},
+        {'name': '净魂之刃-等级2', 'stack': null},
+      ],
+    });
+
+    expect(score.items, ['魔杖', '净魂之刃-等级2']);
+    expect(score.itemImages, [
+      'https://img.16dota.com.cn/resources/images/dota-equips/'
+          '%E9%AD%94%E6%9D%96.jpg',
+      'https://img.16dota.com.cn/resources/images/dota-equips/'
+          '%E5%87%80%E9%AD%82%E4%B9%8B%E5%88%83-%E7%AD%89%E7%BA%A72.jpg',
+    ]);
   });
 }

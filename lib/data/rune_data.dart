@@ -15,14 +15,15 @@ class RuneInfo {
     this.stats = const {},
   });
 
-  String get imageUrl => 'https://cdn.16dota.com.cn/rune/$icon.png';
+  String get imageUrl {
+    if (category == 'MD初始装备') return '';
+    return 'https://img.16dota.com.cn/resources/images/dota-runes/'
+        '${Uri.encodeComponent('符文_$name')}.jpg';
+  }
 
   String get assetPath {
     if (icon.startsWith('fw_')) {
       return 'assets/runes/fw/$icon.png';
-    }
-    if (icon.startsWith('dotamd_')) {
-      return 'assets/runes/ui/fw.png';
     }
     if (icon == 'fw') {
       return 'assets/runes/ui/fw.png';
@@ -43,6 +44,7 @@ class RuneInfo {
       .replaceAll(RegExp(r'\|c[0-9a-fA-F]{8}'), '')
       .replaceAll(RegExp(r'\|r'), '')
       .replaceAll(RegExp(r'^[\[\(（【]?[一二三四五六七八九十0-9]+级符文[\]\)）】]?[:：\s-]*'), '')
+      .replaceAll(RegExp(r'^符文[_:：\\-\\s]*'), '')
       .replaceAll(RegExp(r'\s+'), '')
       .trim();
 
