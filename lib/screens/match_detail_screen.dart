@@ -654,24 +654,12 @@ class _PlayerCard extends StatelessWidget {
                                     ),
                                   )
                                 : null,
-                            child: CircleAvatar(
-                              radius: 20,
-                              backgroundColor: const Color(0xFF30363D),
-                              backgroundImage: p.avatar.isNotEmpty
-                                  ? NetworkImage(p.avatar)
-                                  : null,
-                              child: p.avatar.isEmpty
-                                  ? Text(
-                                      p.heroName.isNotEmpty
-                                          ? p.heroName[0]
-                                          : '?',
-                                      style: const TextStyle(
-                                        color: Colors.white,
-                                        fontSize: 14,
-                                        fontWeight: FontWeight.bold,
-                                      ),
-                                    )
-                                  : null,
+                            child: _HeroPortrait(
+                              heroImage: p.heroImage,
+                              avatar: p.avatar,
+                              fallbackText: p.heroName.isNotEmpty
+                                  ? p.heroName
+                                  : p.nickname,
                             ),
                           ),
                           const SizedBox(width: 8),
@@ -945,6 +933,98 @@ class _StatCell extends StatelessWidget {
   );
 }
 
+// ── Hero portrait ──────────────────────────────────────────────────────────
+
+class _HeroPortrait extends StatelessWidget {
+  final String heroImage;
+  final String avatar;
+  final String fallbackText;
+
+  const _HeroPortrait({
+    required this.heroImage,
+    required this.avatar,
+    required this.fallbackText,
+  });
+
+  static const _size = 46.0;
+  static const _avatarSize = 18.0;
+
+  @override
+  Widget build(BuildContext context) {
+    final label = fallbackText.trim().isNotEmpty ? fallbackText.trim()[0] : '?';
+
+    return SizedBox(
+      width: _size,
+      height: _size,
+      child: Stack(
+        clipBehavior: Clip.none,
+        children: [
+          Container(
+            width: _size,
+            height: _size,
+            decoration: BoxDecoration(
+              color: const Color(0xFF30363D),
+              borderRadius: BorderRadius.circular(5),
+              border: Border.all(color: const Color(0xFF444C56)),
+            ),
+            clipBehavior: Clip.antiAlias,
+            child: heroImage.isNotEmpty
+                ? Image.network(
+                    heroImage,
+                    width: _size,
+                    height: _size,
+                    fit: BoxFit.cover,
+                    errorBuilder: (context, error, stack) =>
+                        _PortraitFallback(label: label),
+                  )
+                : _PortraitFallback(label: label),
+          ),
+          if (avatar.isNotEmpty)
+            Positioned(
+              right: -3,
+              bottom: -3,
+              child: Container(
+                width: _avatarSize,
+                height: _avatarSize,
+                decoration: BoxDecoration(
+                  shape: BoxShape.circle,
+                  border: Border.all(color: const Color(0xFF161B22), width: 2),
+                ),
+                child: ClipOval(
+                  child: Image.network(
+                    avatar,
+                    width: _avatarSize,
+                    height: _avatarSize,
+                    fit: BoxFit.cover,
+                    errorBuilder: (context, error, stack) =>
+                        const ColoredBox(color: Color(0xFF30363D)),
+                  ),
+                ),
+              ),
+            ),
+        ],
+      ),
+    );
+  }
+}
+
+class _PortraitFallback extends StatelessWidget {
+  final String label;
+  const _PortraitFallback({required this.label});
+
+  @override
+  Widget build(BuildContext context) => Center(
+    child: Text(
+      label,
+      style: const TextStyle(
+        color: Colors.white,
+        fontSize: 16,
+        fontWeight: FontWeight.bold,
+      ),
+    ),
+  );
+}
+
 // ── Item slot ──────────────────────────────────────────────────────────────
 
 class _ItemSlot extends StatelessWidget {
@@ -956,11 +1036,11 @@ class _ItemSlot extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final isEmpty = name.isEmpty;
+    final isEmpty = name.isEmpty && imageUrl.isEmpty;
     final hasImage = imageUrl.isNotEmpty;
 
     return Tooltip(
-      message: name,
+      message: name.isNotEmpty ? name : '装备',
       child: Container(
         width: _size,
         height: _size,

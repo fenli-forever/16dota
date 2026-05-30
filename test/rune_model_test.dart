@@ -38,14 +38,30 @@ void main() {
       ],
     });
 
-    expect(
-      score.runes.map((r) => r.name),
-      containsAll(['大力', '射程专精', '攻击之弩']),
-    );
+    expect(score.runes.map((r) => r.name), containsAll(['大力', '射程专精', '攻击之弩']));
     expect(
       score.runes.firstWhere((r) => r.name == '攻击之弩').assetPath,
       'assets/runes/fw/fw_1.png',
     );
     expect(score.runes.map((r) => r.name), isNot(contains('不是符文服务')));
+  });
+
+  test('player score extracts hero and item images from pc-like payloads', () {
+    final score = PlayerScore.fromJson({
+      'user_id': '1',
+      'user': {'nick_name': 'moes', 'pic': '//img.16dota.com.cn/avatar.png'},
+      'hero': {'name': '山岭巨人', 'icon_url': '/hero/tiny.png'},
+      'items': [
+        {'itemName': '跳刀', 'icon': '/item/blink.png'},
+        {'name': '魔杖', 'imageUrl': 'https://img.16dota.com.cn/item/wand.png'},
+      ],
+    });
+
+    expect(score.nickname, 'moes');
+    expect(score.avatar, 'https://img.16dota.com.cn/avatar.png');
+    expect(score.heroName, '山岭巨人');
+    expect(score.heroImage, 'https://img.16dota.com.cn/hero/tiny.png');
+    expect(score.items, ['跳刀', '魔杖']);
+    expect(score.itemImages.first, 'https://img.16dota.com.cn/item/blink.png');
   });
 }

@@ -130,6 +130,7 @@ class PlayerScore {
   final String nickname;
   final String avatar;
   final String heroName;
+  final String heroImage;
   final String teamName;
   final int kills;
   final int deaths;
@@ -159,6 +160,7 @@ class PlayerScore {
     required this.nickname,
     required this.avatar,
     required this.heroName,
+    required this.heroImage,
     required this.teamName,
     required this.kills,
     required this.deaths,
@@ -191,20 +193,74 @@ class PlayerScore {
 
   factory PlayerScore.fromJson(Map<String, dynamic> j) {
     final user = j['user'] as Map<String, dynamic>? ?? {};
-    final inventory =
-        (j['inventory'] as List?)?.cast<Map<String, dynamic>>() ?? [];
+    final heroMap = _asStringMap(j['hero']);
+    final inventory = _extractInventory(j);
     final runes = _extractRunes(j);
     // is_mvp 可能是 bool 或 Map{score:...}
     final mvpRaw = j['is_mvp'];
     final mvp = mvpRaw is Map
         ? mvpRaw.cast<String, dynamic>()
         : <String, dynamic>{};
+    final explicitHeroName = _firstStringFromMaps(
+      [j],
+      const ['hero_name', 'heroName'],
+    );
+    final mappedHeroName = _firstStringFromMaps(
+      [heroMap],
+      const ['name', 'title', 'label'],
+    );
+    final heroName = explicitHeroName.isNotEmpty
+        ? explicitHeroName
+        : mappedHeroName.isNotEmpty
+        ? mappedHeroName
+        : j['hero'] is String
+        ? j['hero'].toString()
+        : '';
 
     return PlayerScore(
       userId: j['user_id']?.toString() ?? user['user_id']?.toString() ?? '',
       nickname: user['nick_name']?.toString() ?? j['name']?.toString() ?? '',
-      avatar: user['pic']?.toString() ?? '',
-      heroName: j['hero']?.toString() ?? '',
+      avatar: _imageUrl(
+        _firstStringFromMaps(
+          [user, j],
+          const [
+            'pic',
+            'avatar',
+            'avatar_url',
+            'avatarUrl',
+            'head_img',
+            'headImg',
+          ],
+        ),
+      ),
+      heroName: heroName,
+      heroImage: _imageUrl(
+        _firstStringFromMaps(
+          [j, heroMap],
+          const [
+            'hero_image',
+            'heroImage',
+            'hero_icon',
+            'heroIcon',
+            'hero_avatar',
+            'heroAvatar',
+            'hero_pic',
+            'heroPic',
+            'hero_img',
+            'heroImg',
+            'image_url',
+            'imageUrl',
+            'icon_url',
+            'iconUrl',
+            'avatar',
+            'pic',
+            'img_url',
+            'imgUrl',
+            'img',
+            'url',
+          ],
+        ),
+      ),
       teamName: j['team']?.toString() ?? '',
       kills: (j['kills'] as num?)?.toInt() ?? 0,
       deaths: (j['deaths'] as num?)?.toInt() ?? 0,
@@ -225,20 +281,90 @@ class PlayerScore {
       participationRate: (j['participation_rate'] as num?)?.toDouble() ?? 0,
       isMostKills: j['is_most_kills'] == true || mvp['is_most_kills'] == true,
       mvpScore: (mvp['score'] as num?)?.toDouble() ?? 0,
-      items: inventory.map((e) => e['name']?.toString() ?? '').toList(),
+      items: inventory
+          .map(
+            (e) => _firstStringFromMaps(
+              [e],
+              const ['name', 'item_name', 'itemName', 'title', 'label'],
+            ),
+          )
+          .toList(),
       itemImages: inventory
           .map(
-            (e) =>
-                e['image_url']?.toString() ??
-                e['icon']?.toString() ??
-                e['img_url']?.toString() ??
-                e['img']?.toString() ??
-                e['pic']?.toString() ??
-                '',
+            (e) => _imageUrl(
+              _firstStringFromMaps(
+                [e],
+                const [
+                  'image_url',
+                  'imageUrl',
+                  'icon',
+                  'icon_url',
+                  'iconUrl',
+                  'img_url',
+                  'imgUrl',
+                  'img',
+                  'pic',
+                  'url',
+                  'path',
+                ],
+              ),
+            ),
           )
           .toList(),
       runes: runes,
     );
+  }
+
+  static Map<String, dynamic> _asStringMap(Object? value) {
+    if (value is! Map) return {};
+    return value.map((key, value) => MapEntry(key.toString(), value));
+  }
+
+  static List<Map<String, dynamic>> _extractInventory(Map<String, dynamic> j) {
+    const keys = [
+      'inventory',
+      'items',
+      'item_list',
+      'itemList',
+      'equips',
+      'equipment',
+      'equipments',
+    ];
+    for (final key in keys) {
+      final value = j[key];
+      if (value is List) {
+        return value
+            .whereType<Map>()
+            .map((e) => e.map((key, value) => MapEntry(key.toString(), value)))
+            .toList();
+      }
+    }
+    return const [];
+  }
+
+  static String _firstStringFromMaps(
+    List<Map<String, dynamic>> maps,
+    List<String> keys,
+  ) {
+    for (final map in maps) {
+      if (map.isEmpty) continue;
+      for (final key in keys) {
+        final value = map[key];
+        if (value is Map) continue;
+        final text = value?.toString().trim() ?? '';
+        if (text.isNotEmpty && text != 'null') return text;
+      }
+    }
+    return '';
+  }
+
+  static String _imageUrl(String value) {
+    final text = value.trim();
+    if (text.isEmpty) return '';
+    if (text.startsWith(RegExp(r'https?://'))) return text;
+    if (text.startsWith('//')) return 'https:$text';
+    if (text.startsWith('/')) return 'https://img.16dota.com.cn$text';
+    return text;
   }
 
   static List<RuneRecord> _extractRunes(Map<String, dynamic> playerJson) {
